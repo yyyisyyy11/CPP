@@ -23,22 +23,50 @@ int main()
 
     // some operations on the matrices
 
-    float maxa = -FLT_MIN;
-    float maxb = -FLT_MIN;
-    float maxc = -FLT_MIN;
+    // 输入检查：确保矩阵合法
+    if (matA.rows == 0 || matA.cols == 0 || matA.pData == nullptr)
+    {
+        cerr << "matA is invalid!" << endl;
+        return -1;
+    }
+    if (matB.rows == 0 || matB.cols == 0 || matB.pData == nullptr)
+    {
+        cerr << "matB is invalid!" << endl;
+        return -1;
+    }
+    if (matC.rows == 0 || matC.cols == 0 || matC.pData == nullptr)
+    {
+        cerr << "matC is invalid!" << endl;
+        return -1;
+    }
 
-    //find max value of matA
-    for(size_t r = 0; r < matA.rows; r++)
-        for (size_t c = 0; c < matA.cols; c++)
-        {
-            float val = matA.pData[ r * matA.cols + c];
-            maxa = ( maxa > val ? maxa : val);
-        }
+    float maxa = -FLT_MAX;
+    float maxb = -FLT_MAX;
+    float maxc = -FLT_MAX;
 
-    //find max value of matB
+    //find max value of matA (单层循环)
+    size_t totalA = matA.rows * matA.cols;
+    for (size_t i = 0; i < totalA; i++)
+    {
+        if (matA.pData[i] > maxa)
+            maxa = matA.pData[i];
+    }
 
+    //find max value of matB (单层循环)
+    size_t totalB = matB.rows * matB.cols;
+    for (size_t i = 0; i < totalB; i++)
+    {
+        if (matB.pData[i] > maxb)
+            maxb = matB.pData[i];
+    }
 
-    //find max value of matC
+    //find max value of matC (单层循环)
+    size_t totalC = matC.rows * matC.cols;
+    for (size_t i = 0; i < totalC; i++)
+    {
+        if (matC.pData[i] > maxc)
+            maxc = matC.pData[i];
+    }
 
     cout << "max(matA) = " << maxa << endl;
     cout << "max(matB) = " << maxb << endl;
