@@ -1,0 +1,284 @@
+12    1       3       java.lang.Object::<init> (1 bytes)
+13    2       3       java.lang.Byte::toUnsignedInt (6 bytes)
+13    3       3       java.lang.String::hashCode (60 bytes)
+13    4     n 0       jdk.internal.misc.Unsafe::getReferenceVolatile (native)   
+13    5     n 0       jdk.internal.vm.Continuation::enterSpecial (native)   (static)
+13    6     n 0       jdk.internal.vm.Continuation::doYield (native)   (static)
+15    7       3       java.lang.String::coder (15 bytes)
+type,n,ms
+Data type: float
+16    8     n 0       jdk.internal.misc.Unsafe::compareAndSetLong (native)   
+16    9       1       java.util.concurrent.atomic.AtomicLong::get (5 bytes)
+17   10       3       java.util.Random::nextFloat (11 bytes)
+17   11       3       java.util.Random::next (47 bytes)
+17   12       3       java.util.concurrent.atomic.AtomicLong::compareAndSet (13 bytes)
+17   13       3       java.lang.String::length (11 bytes)
+17   14       3       java.lang.String::isLatin1 (19 bytes)
+float,18   15       3       jdk.internal.util.Preconditions::checkIndex (18 bytes)
+18   16       3       java.lang.String::charAt (25 bytes)
+18   27       3       java.lang.StringLatin1::equals (36 bytes)
+19   22       3       java.util.HashMap::putVal (300 bytes)
+19   17       3       java.lang.StringLatin1::charAt (15 bytes)
+19   18       3       java.lang.String::checkIndex (10 bytes)
+19   28     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LL)V (native)   (static)
+19   19       3       sun.util.locale.LocaleUtils::isUpper (18 bytes)
+19   21       3       java.util.HashMap::hash (20 bytes)
+19   23       3       java.util.HashMap::newNode (13 bytes)
+19   29       4       java.lang.Object::<init> (1 bytes)
+19   30     n 0       java.lang.System::arraycopy (native)   (static)
+19   24       3       java.util.HashMap$Node::<init> (26 bytes)
+19   25       3       java.util.HashMap::afterNodeInsertion (1 bytes)
+19   26       3       java.util.HashMap::put (13 bytes)
+20   20       3       java.lang.String::equals (56 bytes)
+20   31       1       java.lang.Enum::ordinal (5 bytes)
+20    1       3       java.lang.Object::<init> (1 bytes)   made not entrant: not used
+20   32     n 0       java.lang.invoke.MethodHandle::invokeBasic()L (native)   
+20   33     n 0       java.lang.Object::hashCode (native)   
+20   34       3       java.util.concurrent.ConcurrentHashMap::tabAt (21 bytes)
+20   36     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LL)L (native)   (static)
+20   35       3       jdk.internal.misc.Unsafe::getReferenceAcquire (7 bytes)
+20   37       3       java.util.Objects::requireNonNull (14 bytes)
+20   38       3       java.util.concurrent.ConcurrentHashMap::spread (10 bytes)
+43   39     n 0       java.lang.invoke.MethodHandle::linkToStatic(L)L (native)   (static)
+43   40       1       jdk.internal.util.StrongReferenceKey::get (5 bytes)
+43   41       1       java.lang.Class::isPrimitive (5 bytes)
+43   42     n 0       java.lang.invoke.MethodHandle::linkToStatic(LLL)L (native)   (static)
+44   43     n 0       java.lang.invoke.MethodHandle::linkToStatic(LLLL)L (native)   (static)
+44   44     n 0       jdk.internal.misc.Unsafe::compareAndSetReference (native)   
+44   45       3       java.lang.Enum::<init> (15 bytes)
+45   46     n 0       java.lang.invoke.MethodHandle::invokeBasic(L)L (native)   
+45   47     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LLL)L (native)   (static)
+45   48       4       java.lang.Byte::toUnsignedInt (6 bytes)
+45    2       3       java.lang.Byte::toUnsignedInt (6 bytes)   made not entrant: not used
+46   49     n 0       java.lang.Object::clone (native)   
+46   50       1       java.lang.invoke.MethodType::returnType (5 bytes)
+46   51   !   3       java.lang.ref.ReferenceQueue::poll (44 bytes)
+46   52     n 0       java.lang.invoke.MethodHandle::linkToStatic(LLLLLLL)L (native)   (static)
+46   54       3       jdk.internal.util.ReferencedKeyMap::removeStaleReferences (30 bytes)
+46   55     n 0       java.lang.invoke.MethodHandle::linkToStatic(IIL)I (native)   (static)
+46   53       1       java.lang.Class::getClassLoader (5 bytes)
+46   56       3       java.util.concurrent.ConcurrentHashMap::get (162 bytes)
+46   57     n 0       java.lang.invoke.MethodHandle::invokeBasic(LLLLLL)L (native)   
+47   58       1       jdk.internal.classfile.impl.AbstractPoolEntry::index (5 bytes)
+47   59     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LIL)V (native)   (static)
+47   60     n 0       java.lang.invoke.MethodHandle::invokeBasic(I)L (native)   
+47   61     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LIL)L (native)   (static)
+47   62       3       jdk.internal.util.ReferencedKeyMap::lookupKey (9 bytes)
+47   63       3       jdk.internal.util.StrongReferenceKey::<init> (10 bytes)
+47   65       3       java.lang.Math::min (11 bytes)
+47   66       3       java.util.regex.Pattern$$Lambda/0x800000027::is (9 bytes)
+47   68       3       java.util.regex.Pattern$BmpCharPropertyGreedy::match (89 bytes)
+47   67       3       java.util.regex.Pattern::lambda$Single$0 (11 bytes)
+47   69       3       java.util.regex.Matcher::checkMatch (19 bytes)
+47   70       3       java.util.regex.Matcher::hasMatch (13 bytes)
+47   85       3       java.util.regex.Pattern$Start::match (90 bytes)
+47   84       3       java.util.regex.Matcher::search (154 bytes)
+47   71       3       java.lang.String::<init> (15 bytes)
+47   72       3       jdk.internal.util.Preconditions::checkFromToIndex (24 bytes)
+48   73       3       java.lang.String::checkBoundsBeginEnd (11 bytes)
+48   87       4       java.lang.String::charAt (25 bytes)
+48   74       3       java.util.Arrays::copyOfRange (82 bytes)
+48   75       3       java.lang.String::substring (58 bytes)
+48   76       3       java.lang.StringLatin1::newString (24 bytes)
+48   77       3       java.util.ArrayList::add (25 bytes)
+48   89       3       jdk.internal.util.ArraysSupport::unsignedHashCode (36 bytes)
+48   92       3       java.util.ImmutableCollections$SetN::probe (56 bytes)
+48   78       3       java.util.ArrayList::add (23 bytes)
+48   79       3       java.lang.String::toString (2 bytes)
+48   16       3       java.lang.String::charAt (25 bytes)   made not entrant: not used
+48   88       4       java.util.regex.Pattern$BmpCharPropertyGreedy::match (89 bytes)
+48   80       3       java.util.regex.Matcher::start (9 bytes)
+48   94     n 0       java.lang.invoke.MethodHandle::linkToStatic(LL)L (native)   (static)
+48   81       3       java.lang.String::subSequence (7 bytes)
+48   82       3       java.util.regex.Matcher::end (9 bytes)
+48   83       3       java.util.regex.Matcher::find (69 bytes)
+49   90       3       java.lang.Math::floorMod (20 bytes)
+49   91       3       jdk.internal.util.ArraysSupport::vectorizedHashCode (158 bytes)
+49   93       3       jdk.internal.util.ArraysSupport::hashCodeOfUnsigned (55 bytes)
+49   86       3       java.util.regex.Pattern$LastNode::match (45 bytes)
+49   96     n 0       jdk.internal.misc.Unsafe::getByte (native)   
+49   64       3       jdk.internal.util.StrongReferenceKey::hashCode (8 bytes)
+49   95       3       java.lang.ref.Reference::reachabilityFence (1 bytes)
+49   97       1       java.lang.invoke.MemberName::getDeclaringClass (5 bytes)
+49   98       3       java.lang.invoke.MethodType::hashCode (53 bytes)
+49   99       3       java.lang.invoke.MemberName::isInvocable (8 bytes)
+49  100       3       java.lang.invoke.MemberName::anyFlagSet (15 bytes)
+49  101       3       java.util.Objects::requireNonNull (15 bytes)
+49   68       3       java.util.regex.Pattern$BmpCharPropertyGreedy::match (89 bytes)   made not entrant: marked for deoptimization
+51  102     n 0       java.lang.Object::getClass (native)   
+51  103       1       java.lang.invoke.MethodType::ptypes (5 bytes)
+51  105     n 0       java.lang.invoke.MethodHandle::linkToStatic(LLL)I (native)   (static)
+51  104       3       java.lang.invoke.MethodTypeForm::canonicalize (74 bytes)
+51  106       3       jdk.internal.util.ReferencedKeyMap::get (10 bytes)
+51  107       3       jdk.internal.util.ReferencedKeyMap::getNoCheckStale (22 bytes)
+51  111     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LLL)V (native)   (static)
+51  108       1       jdk.internal.classfile.impl.SplitConstantPool::size (5 bytes)
+51  109       1       jdk.internal.classfile.impl.AbstractPoolEntry::width (2 bytes)
+51  110       1       java.lang.invoke.MethodType::form (5 bytes)
+51  112     n 0       java.lang.invoke.MethodHandle::linkToSpecial(LL)I (native)   (static)
+52  113       1       java.util.HashMap$Node::getValue (5 bytes)
+52  114       3       java.lang.StringLatin1::indexOf (121 bytes)
+52  116     n 0       java.lang.invoke.MethodHandle::linkToInterface(LL)L (native)   (static)
+52  115       3       java.lang.Class::isArray (13 bytes)
+52  117       3       jdk.internal.classfile.impl.SplitConstantPool::map (161 bytes)
+52  121       3       java.lang.String::getBytes (44 bytes)
+52  119       3       jdk.internal.classfile.impl.BufWriterImpl::reserveSpace (22 bytes)
+52  120       3       java.util.concurrent.ConcurrentHashMap$Node::<init> (20 bytes)
+52  122       3       java.lang.invoke.MethodType::checkSlotCount (33 bytes)
+52  118       1       jdk.internal.classfile.impl.RawBytecodeHelper::bci (5 bytes)
+52  124       3       java.lang.String::isEmpty (14 bytes)
+52  125       3       java.util.concurrent.ConcurrentHashMap::addCount (280 bytes)
+53  126       3       java.lang.StringLatin1::indexOfChar (33 bytes)
+53  134   !   3       java.util.concurrent.ConcurrentHashMap::putVal (432 bytes)
+53  127       3       java.nio.Buffer::session (20 bytes)
+53  128       3       java.nio.Buffer::checkIndex (12 bytes)
+53  129   !   3       java.nio.DirectByteBuffer::get (34 bytes)
+53   87       4       java.lang.String::charAt (25 bytes)   made not entrant: uncommon trap
+53  130       3       java.nio.DirectByteBuffer::ix (10 bytes)
+53  131   !   3       jdk.internal.misc.ScopedMemoryAccess::getByte (16 bytes)
+54  132   !   3       jdk.internal.misc.ScopedMemoryAccess::getByteInternal (34 bytes)
+54  136       3       java.lang.StringUTF16::getChar (60 bytes)
+54  123       1       jdk.internal.classfile.impl.AbstractPoolEntry::constantPool (5 bytes)
+54  137       4       java.lang.StringUTF16::getChar (60 bytes)
+54  133       3       java.util.concurrent.ConcurrentHashMap::casTabAt (20 bytes)
+54  135       1       java.lang.AbstractStringBuilder::length (5 bytes)
+128,54  136       3       java.lang.StringUTF16::getChar (60 bytes)   made not entrant: not used
+0.002125
+54  138       4       java.util.concurrent.atomic.AtomicLong::compareAndSet (13 bytes)
+float,1000,0.006958
+54   12       3       java.util.concurrent.atomic.AtomicLong::compareAndSet (13 bytes)   made not entrant: not used
+54  139       4       java.util.Random::nextFloat (11 bytes)
+float,10000,0.057667
+55   10       3       java.util.Random::nextFloat (11 bytes)   made not entrant: not used
+55  140       4       java.util.Random::next (47 bytes)
+55   11       3       java.util.Random::next (47 bytes)   made not entrant: not used
+56  141 %     3       Dotproduct::benchmarkFloat @ 11 (99 bytes)
+56  142       3       Dotproduct::benchmarkFloat (99 bytes)
+56  143 %     4       Dotproduct::benchmarkFloat @ 11 (99 bytes)
+float,100000,57  145       0.5678333       java.lang.AbstractStringBuilder::needsNewBuffer (33 bytes)
+
+59  141 %     3       Dotproduct::benchmarkFloat @ 11 (99 bytes)   made not entrant: OSR invalidation of lower levels
+59  144 %     4       Dotproduct::dotFloat @ 4 (28 bytes)
+61  146       4       Dotproduct::benchmarkFloat (99 bytes)
+65  142       3       Dotproduct::benchmarkFloat (99 bytes)   made not entrant: not used
+69  143 %     4       Dotproduct::benchmarkFloat @ 11 (99 bytes)   made not entrant: uncommon trap
+69  147       4       Dotproduct::dotFloat (28 bytes)
+70  148       3       java.lang.StringLatin1::canEncode (17 bytes)
+float,1000000,0.616042
+70  150       3       java.lang.AbstractStringBuilder::isLatin1 (16 bytes)
+70  149       1       java.nio.Buffer::limit (5 bytes)
+float,188  151       1       java.nio.Buffer::position (5 bytes)
+10000000,5.175917
+189  152       3       java.lang.String::charAt (25 bytes)
+float,100000000,52.060708
+Data type: double
+double,1452 128 153       3 ,      java.util.Random::nextDouble (24 bytes)
+0.002000
+double,1000,0.006167
+1452  154       4       java.util.Random::nextDouble (24 bytes)
+double,10000,0.056125
+1453  153       3       java.util.Random::nextDouble (24 bytes)   made not entrant: not used
+1454  155 %     3       Dotproduct::benchmarkDouble @ 11 (98 bytes)
+1454  156       3       Dotproduct::benchmarkDouble (98 bytes)
+1455  157 %     4       Dotproduct::benchmarkDouble @ 11 (98 bytes)
+double,100000,0.578708
+1458  155 %     3       Dotproduct::benchmarkDouble @ 11 (98 bytes)   made not entrant: OSR invalidation of lower levels
+1458  158 %     4       Dotproduct::dotDouble @ 5 (32 bytes)
+1459  159       4       Dotproduct::benchmarkDouble (98 bytes)
+1463  156       3       Dotproduct::benchmarkDouble (98 bytes)   made not entrant: not used
+1478  157 %     4       Dotproduct::benchmarkDouble @ 11 (98 bytes)   made not entrant: uncommon trap
+1478  160       4       Dotproduct::dotDouble (32 bytes)
+double,1000000,0.555292
+double,1711  161       3      10000000 java.nio.ByteBuffer::,arrayOffset (35 bytes)
+5.368458
+double,100000000,53.529167
+Data type: int
+4479  162       3       java.lang.StringLatin1::indexOf (17 bytes)
+int,128,0.002167
+int,1000,4479  163       3       java.util.Random::nextInt (74 bytes)0.006042
+
+4479  164       3       java.nio.Buffer::position (52 bytes)
+4479  168       4       java.util.Random::nextInt (74 bytes)
+4479  165       3       java.lang.StringBuilder::append (8 bytes)
+4479  166       3       java.lang.AbstractStringBuilder::append (102 bytes)
+4480  167       3       java.lang.StringLatin1::coderFromChar (10 bytes)
+int,100004480  169       3       java.nio.CharBuffer::arrayOffset (35 bytes)
+,0.056291
+4480  163       3       java.util.Random::nextInt (74 bytes)   made not entrant: not used
+4481  170 %     3       Dotproduct::benchmarkInt @ 11 (111 bytes)
+4481  171       3       Dotproduct::benchmarkInt (111 bytes)
+4481  172 %     4       Dotproduct::benchmarkInt @ 11 (111 bytes)
+int,1000004482 , 174       3       java.lang.StringBuilder::length (5 bytes)
+0.598292
+4485  170 %     3       Dotproduct::benchmarkInt @ 11 (111 bytes)   made not entrant: OSR invalidation of lower levels
+4486  173 %     4       Dotproduct::dotInt @ 5 (34 bytes)
+4487  175       4       Dotproduct::benchmarkInt (111 bytes)
+4490  171       3       Dotproduct::benchmarkInt (111 bytes)   made not entrant: not used
+4494  172 %     4       Dotproduct::benchmarkInt @ 11 (111 bytes)   made not entrant: uncommon trap
+int,1000000,0.305916
+4548  175       4       Dotproduct::benchmarkInt (111 bytes)   made not entrant: uncommon trap
+4548  176 %     3       Dotproduct::benchmarkInt @ 11 (111 bytes)
+4548  177       3       Dotproduct::benchmarkInt (111 bytes)
+4548  178 %     4       Dotproduct::benchmarkInt @ 11 (111 bytes)
+4552  176 %     3       Dotproduct::benchmarkInt @ 11 (111 bytes)   made not entrant: OSR invalidation of lower levels
+4552  179       4       Dotproduct::benchmarkInt (111 bytes)
+4556  177       3       Dotproduct::benchmarkInt (111 bytes)   made not entrant: not used
+int,10000000,2.373000
+int,5883  180     n 0       jdk.internal.misc.Unsafe::putByte (native)   
+100000000,23.464292
+Data type: short
+short,128,0.001500
+short,1000,5883  181       3      0.005834 java.io.PrintStream::
+ensureOpen (18 bytes)
+5883  182       3       java.lang.StringBuilder::charAt (6 bytes)
+5883  183       3       java.lang.AbstractStringBuilder::charAt (51 bytes)
+short,10000,0.054750
+5883  184       1       java.nio.Buffer::capacity (5 bytes)
+5884  185 %     3       Dotproduct::benchmarkShort @ 11 (113 bytes)
+5885  186       3       Dotproduct::benchmarkShort (113 bytes)
+5885  187 %     4       Dotproduct::benchmarkShort @ 11 (113 bytes)
+short,5886  189       3       java.io.BufferedWriter::ensureOpen (18 bytes)
+5886  192     n 0       java.lang.Float::floatToRawIntBits (native)   (static)
+1000005886  190       3       java.nio.Buffer::remaining (20 bytes)
+5886  198     n 0       java.io.FileOutputStream::writeBytes (native)   
+,5886  191       3       java.lang.String::indexOf (41 bytes)
+0.591958
+5886  194       3       java.nio.CharBuffer::position (6 bytes)
+5886  195       3       java.nio.CharBuffer::position (8 bytes)
+5886  196       3       java.nio.charset.CoderResult::isUnderflow (13 bytes)
+5886  197       3       java.nio.ByteBuffer::array (35 bytes)
+5886  193       1       java.nio.charset.CharsetEncoder::maxBytesPerChar (5 bytes)
+5887  185 %     3       Dotproduct::benchmarkShort @ 11 (113 bytes)   made not entrant: OSR invalidation of lower levels
+5887  188 %     4       Dotproduct::dotShort @ 5 (34 bytes)
+5888  199       4       Dotproduct::benchmarkShort (113 bytes)
+5892  186       3       Dotproduct::benchmarkShort (113 bytes)   made not entrant: not used
+5897  187 %     4       Dotproduct::benchmarkShort @ 11 (113 bytes)   made not entrant: uncommon trap
+5897  200       4       Dotproduct::dotShort (34 bytes)
+5897  201       3       java.lang.String::short,valueOf (15 bytes)
+1000000,0.261333
+short,10000000,2.290792
+7182  202       3       java.lang.Math::short,max (11 bytes)
+100000000,23.282750
+Data type: byte
+7183  203       4       java.lang.String::toString (2 bytes)
+byte,1287183  204       3      , java.util.Formatter$Flags::contains (13 bytes)
+0.001625
+7183   79       3       java.lang.String::toString (2 bytes)   made not entrant: not used
+byte,10007183  205       3       java.lang.String::checkBoundsOffCount (10 bytes)
+,0.006333
+7183  206       3       jdk.internal.util.Preconditions::checkFromIndexSize (25 bytes)
+byte,10000,0.055250
+7184  207 %     3       Dotproduct::benchmarkByte @ 11 (113 bytes)
+7184  208       3       Dotproduct::benchmarkByte (113 bytes)
+7185  209 %     4       Dotproduct::benchmarkByte @ 11 (113 bytes)
+byte,100000,0.5867507185  211       1 
+      java.lang.AbstractStringBuilder::getValue (5 bytes)
+7186  207 %     3       Dotproduct::benchmarkByte @ 11 (113 bytes)   made not entrant: OSR invalidation of lower levels
+7186  210 %     4       Dotproduct::dotByte @ 5 (34 bytes)
+7188  212       4       Dotproduct::benchmarkByte (113 bytes)
+7191  208       3       Dotproduct::benchmarkByte (113 bytes)   made not entrant: not used
+7196  209 %     4       Dotproduct::benchmarkByte @ 11 (113 bytes)   made not entrant: uncommon trap
+7196  213       4       Dotproduct::dotByte (34 bytes)
+byte,1000000,0.245708
+byte,10000000,2.348458
+byte,100000000,24.292875
