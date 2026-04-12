@@ -1,0 +1,6 @@
+*.csv
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.pdf

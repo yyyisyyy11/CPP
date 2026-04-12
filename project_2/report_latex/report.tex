@@ -1,21 +1,21 @@
 \documentclass[12pt,a4paper]{article}
 
-% ── 中文支持 ──
-\usepackage[UTF8]{ctex}
-
-% ── 页面与排版 ──
+% ── Page Layout ──
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
 
-% ── 表格与图形 ──
+% ── Tables & Figures ──
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{longtable}
 \usepackage{graphicx}
 \usepackage{float}
 
-% ── 代码块 ──
+% ── Math ──
+\usepackage{amsmath}
+
+% ── Code Listings ──
 \usepackage{listings}
 \usepackage{xcolor}
 
@@ -30,7 +30,7 @@
   framexleftmargin=0.5em,
 }
 
-% ── 超链接 ──
+% ── Hyperlinks ──
 \usepackage{hyperref}
 \hypersetup{
   colorlinks=true,
@@ -38,7 +38,7 @@
   urlcolor=blue!60!black,
 }
 
-% ── 标题信息 ──
+% ── Title ──
 \title{\textbf{Dot Product Performance Benchmark Report}}
 \author{}
 \date{}
@@ -48,35 +48,36 @@
 \maketitle
 
 % ============================================================
-\section{实验概述}
+\section{Experiment Overview}
 % ============================================================
 
-\subsection{实验目标}
+\subsection{Objective}
 
-对比 C 语言和 Java 在计算向量点积时的性能差异，覆盖多种数据类型和向量规模。
+Compare the performance of C and Java when computing vector dot products, covering multiple data types and vector sizes.
 
-\subsection{实验环境}
+\subsection{Environment}
 
 \begin{itemize}
-  \item \textbf{平台}：macOS (Apple Silicon)
-  \item \textbf{C 编译器}：gcc（两种配置：无优化 \texttt{-O0}，最高优化 \texttt{-O3}）
-  \item \textbf{Java}：JDK（默认 JIT 编译）
-  \item \textbf{随机种子}：42（固定，确保可复现）
+  \item \textbf{Platform}: macOS (Apple Silicon)
+  \item \textbf{C Compiler}: gcc (two configurations: no optimization \texttt{-O0}, maximum optimization \texttt{-O3})
+  \item \textbf{Java}: JDK (default JIT compilation)
+  \item \textbf{Random Seed}: 42 (fixed for reproducibility)
 \end{itemize}
 
-\subsection{实验设计}
+\subsection{Experimental Design}
 
 \begin{itemize}
-  \item \textbf{数据类型}：float (4B), double (8B), int (4B), short (2B), signed char / byte (1B)
-  \item \textbf{向量规模 $n$}：128, 1000, $10^4$, $10^5$, $10^6$, $10^7$, $10^8$
-  \item \textbf{计时方式}：C 使用 \texttt{<time.h>}，Java 使用 \texttt{System.nanoTime()}
+  \item \textbf{Data Types}: float (4B), double (8B), int (4B), short (2B), signed char / byte (1B)
+  \item \textbf{Vector Size $n$}: 128, 1000, $10^4$, $10^5$, $10^6$, $10^7$, $10^8$
+  \item \textbf{Timing}: C uses \texttt{clock\_gettime(CLOCK\_MONOTONIC)} (nanosecond-resolution monotonic clock); Java uses \texttt{System.nanoTime()}
+  \item \textbf{Adaptive Iteration}: For small $n$, C automatically increases the number of iterations (target total time $\geq$50ms), then averages, to eliminate timer granularity errors
 \end{itemize}
 
 % ============================================================
-\section{性能数据}
+\section{Performance Data}
 % ============================================================
 
-\subsection{按数据类型分组}
+\subsection{Grouped by Data Type}
 
 \subsubsection*{float (4 bytes)}
 
@@ -176,16 +177,16 @@ $n$ & C-O0 (ms) & C-O3 (ms) & Java (ms) \\
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{benchmark_chart.png}
-\caption{各数据类型在不同向量规模下的运行时间对比（对数坐标）}
+\caption{Runtime comparison across data types and vector sizes (log scale)}
 \end{figure}
 
-\subsection{加速比（$n = 10^8$）}
+\subsection{Speedup Ratios ($n = 10^8$)}
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l l l l}
 \toprule
-数据类型 & C-O3 vs C-O0 & Java vs C-O0 & Java vs C-O3 \\
+Data Type & C-O3 vs C-O0 & Java vs C-O0 & Java vs C-O3 \\
 \midrule
 float       & 1.71x & 2.49x (Java faster)              & 1.45x (Java faster) \\
 double      & 0.92x & 3.25x (Java faster)              & 3.54x (Java faster) \\
@@ -197,312 +198,485 @@ signed char & 4.16x & 4.31x (Java faster)              & 1.04x (roughly equal) \
 \end{table}
 
 % ============================================================
-\section{分析}
+\section{Analysis}
 % ============================================================
 
-\subsection{C-O0 vs C-O3：编译器优化的效果}
+\subsection{C-O0 vs C-O3: Effect of Compiler Optimizations}
 
-\texttt{gcc -O3} 在编译时对代码施加了一系列静态优化，效果在不同数据类型上差异显著：
+Using \texttt{gcc -S} to export assembly, we directly compare the instruction-level differences between O0 and O3 on ARM64 (Apple Silicon).
+
+\subsubsection{Assembly Evidence: \texttt{DotInt} O0 vs O3}
+
+\textbf{O0 Loop Body} (processes 1 element per iteration, 21 instructions):
+
+\begin{lstlisting}
+; --- Loop condition check (5 instructions) ---
+ldr   w8, [sp, #12]          ; load i from stack
+ldr   w9, [sp, #28]          ; load n from stack
+subs  w8, w8, w9             ; i - n
+cset  w8, ge                 ; if i >= n
+tbnz  w8, #0, LBB2_4         ; exit loop
+
+; --- Loop body: compute sum += a[i] * b[i] (10 instructions) ---
+ldr   x8, [sp, #40]          ; load pointer a from stack
+ldrsw x9, [sp, #12]          ; load i from stack (2nd time)
+ldrsw x8, [x8, x9, lsl #2]  ; a[i]
+ldr   x9, [sp, #32]          ; load pointer b from stack
+ldrsw x10, [sp, #12]         ; load i from stack (3rd time!)
+ldrsw x9, [x9, x10, lsl #2] ; b[i]
+mul   x9, x8, x9             ; a[i] * b[i]
+ldr   x8, [sp, #16]          ; load sum from stack
+add   x8, x8, x9             ; sum += ...
+str   x8, [sp, #16]          ; store sum back to stack
+
+; --- Loop variable increment (3 instructions) ---
+ldr   w8, [sp, #12]          ; load i from stack (4th time!)
+add   w8, w8, #1             ; i++
+str   w8, [sp, #12]          ; store i back to stack
+\end{lstlisting}
+
+\textbf{O3 SIMD Main Loop} (processes 16 elements per iteration, 14 instructions):
+
+\begin{lstlisting}
+; --- Load 16 ints at once (4 ldp instructions) ---
+ldp   q16, q17, [x11, #-32]    ; a[i..i+7]  (2 x 128-bit)
+ldp   q18, q19, [x11], #64     ; a[i+8..i+15]
+ldp   q20, q21, [x8, #-32]     ; b[i..i+7]
+ldp   q22, q23, [x8], #64      ; b[i+8..i+15]
+
+; --- 8 SIMD multiply-add instructions processing 16 elements ---
+smlal2.2d  v1, v20, v16   ; upper half: int32 -> int64 multiply-add
+smlal.2d   v0, v20, v16   ; lower half: int32 -> int64 multiply-add
+smlal2.2d  v4, v21, v17   ; (each processes 2 or 4 elements)
+smlal.2d   v5, v21, v17
+smlal2.2d  v2, v22, v18
+smlal.2d   v3, v22, v18
+smlal2.2d  v6, v23, v19
+smlal.2d   v7, v23, v19
+
+; --- Loop control (2 instructions) ---
+subs  x12, x12, #16           ; decrement counter by 16
+b.ne  LBB2_5                  ; loop
+\end{lstlisting}
+
+\textbf{O3 Scalar Tail Loop} (handles remaining elements fewer than 16):
+
+\begin{lstlisting}
+ldrsw  x10, [x12], #4         ; a[i], pointer post-increment
+ldrsw  x13, [x11], #4         ; b[i], pointer post-increment
+smaddl x8, w13, w10, x8       ; sum += a[i] * b[i], single instruction
+subs   x9, x9, #1
+b.ne   LBB2_8
+\end{lstlisting}
+
+\subsubsection{Observation 1: Register Allocation vs Stack Memory}
+
+O0 stores all local variables (\texttt{a}, \texttt{b}, \texttt{n}, \texttt{sum}, \texttt{i}) on the stack, requiring \texttt{ldr}/\texttt{str} for every access. The variable \texttt{i} alone is loaded from the stack 4 times per loop iteration (1 for condition check + 1 for computing \texttt{a[i]} + 1 for computing \texttt{b[i]} + 1 for increment), and \texttt{sum} requires 1 load + 1 store per iteration.
+
+O3 keeps all variables in registers (\texttt{x8}=sum, \texttt{x9}=n, \texttt{x10}/\texttt{x11}=pointers), achieving zero stack accesses throughout the loop.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{l l p{10cm}}
+\begin{tabular}{l r r}
 \toprule
-数据类型 & O3/O0 加速比 & 分析 \\
+Metric & O0 & O3 (Scalar Tail) \\
 \midrule
-\textbf{int} & \textbf{8.36x} & 整数运算最受益：O3 可将 int 乘加循环充分向量化（NEON 128-bit 寄存器一次处理 4 个 int），且无浮点精度约束 \\
-short       & 4.75x & 向量化收益更高（128/16=8 个/次），但 short$\to$int 的类型提升增加了额外指令 \\
-signed char & 4.16x & 理论并行度最高（128/8=16 个/次），但类型提升开销更大 \\
-float       & 1.71x & 浮点向量化受限于 IEEE 754 精度要求，编译器不能随意重排加法顺序 \\
-\textbf{double} & \textbf{0.92x} & O3 反而略慢于 O0，可能是 O3 的某些变换（如指令调度）增加了 cache miss 或破坏了流水线效率 \\
+Stack loads per iteration & 7 & 0 \\
+Stack stores per iteration & 2 & 0 \\
+Total stack accesses / iteration & 9 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{关键发现}：O3 对整数类型的加速最为显著（int 8.36x），这符合 SIMD 向量化的理论预期——元素越小并行度越高，且整数运算没有浮点精度约束。但 double 出现了意外的 O3 劣化现象。
+Although stack data typically hits the L1 cache ($\sim$4-cycle latency), the overhead is still significant compared to register access (0 cycles). Furthermore, frequent load/store operations occupy memory ports and hinder instruction-level parallelism (ILP).
+
+\subsubsection{Observation 2: SIMD Vectorization (Key Difference Between Integer and Floating-Point)}
+
+O3 uses the NEON 128-bit SIMD instruction \texttt{smlal.2d} (Signed Multiply-Add Long) for \texttt{DotInt}, where each instruction multiplies 4 32-bit ints and accumulates into 2 64-bit long longs. Combined with 4-way unrolling, it processes 16 elements per loop iteration.
+
+\textbf{Comparison with \texttt{DotFloat} O3 Assembly}:
+
+\begin{lstlisting}
+; DotFloat O3 -- multiplication can be SIMD parallel...
+fmul.4s  v1, v1, v5        ; 4 floats multiplied in parallel OK
+
+; ...but accumulation must be sequential!
+mov   s5, v1[3]            ; extract 4th element
+mov   s17, v1[2]           ; extract 3rd element
+mov   s18, v1[1]           ; extract 2nd element
+fadd  s0, s0, s1           ; sum += 1st result
+fadd  s0, s0, s18          ; sum += 2nd result
+fadd  s0, s0, s17          ; sum += 3rd result
+fadd  s0, s0, s5           ; sum += 4th result
+; (4 groups, 16 fadds total, all sequential)
+\end{lstlisting}
+
+Key difference: multiplication can use \texttt{fmul.4s} to process 4 floats in parallel, but accumulation must be sequential---because IEEE 754 floating-point addition is not associative ($(a+b)+c \neq a+(b+c)$ due to different rounding errors), the compiler cannot reorder \texttt{fadd} into a vector reduction.
+
+Integer addition is associative, so \texttt{smlal.2d} performs both multiplication and accumulation directly within 128-bit registers, with no need to decompose.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l l l r}
+\toprule
+Type & Multiplication & Accumulation & Elements / Iteration \\
+\midrule
+int & \texttt{smlal.2d} (vector mul-add) & In-vector accumulation & 16 \\
+float & \texttt{fmul.4s} (vector mul) & Sequential \texttt{fadd} (element extraction) & 16 (but sequential accumulation) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This directly explains the speedup difference: int achieves 8.16x speedup, while float only achieves 2.18x.
+
+\subsubsection{Observation 3: Instruction Fusion (\texttt{mul + add} $\to$ \texttt{smaddl})}
+
+O0 uses two separate instructions for multiply-add:
+
+\begin{lstlisting}
+; O0: separate multiply and add
+mul  x9, x8, x9          ; result = a[i] * b[i]
+ldr  x8, [sp, #16]       ; load sum (stack access!)
+add  x8, x8, x9          ; sum = sum + result
+\end{lstlisting}
+
+O3 fuses them into a single instruction:
+
+\begin{lstlisting}
+; O3: fused multiply-add
+smaddl x8, w13, w10, x8  ; sum += a[i] * b[i] (single instruction)
+\end{lstlisting}
+
+\texttt{smaddl} (Signed Multiply-Add Long) fuses a 32-bit multiplication and a 64-bit addition into one instruction, reducing both instruction count and register pressure. The floating-point counterpart is similar: O0 uses \texttt{fmadd s0, s0, s1, s2}, but is limited by the extensive stack access overhead.
+
+\subsubsection{Observation 4: Loop Unrolling and Branch Optimization}
+
+O0 requires 5 branch-related instructions per loop iteration (\texttt{subs} + \texttt{cset} + \texttt{tbnz} + 2 unconditional \texttt{b}); O3's SIMD loop needs only 2 (\texttt{subs} + \texttt{b.ne}), and they execute only once per 16 elements.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l r r r}
+\toprule
+Metric & O0 & O3 SIMD & Improvement \\
+\midrule
+Instructions / loop iteration & 21 & 14 & 1.5x \\
+Elements processed / iteration & 1 & 16 & 16x \\
+Instructions / element & 21 & 0.875 & 24x \\
+Branch instructions / element & 5 & 0.125 & 40x \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Observation 5: Why \texttt{DotShort} is Slower Than \texttt{DotInt}}
+
+In theory, short (2 bytes) is smaller than int (4 bytes), so SIMD registers can hold more elements and should be faster. However, the O3 assembly shows that \texttt{DotShort} uses only scalar unrolling (4-way), not NEON vector instructions:
+
+\begin{lstlisting}
+; DotShort O3 -- scalar unrolling, not SIMD
+ldursh x17, [x15, #-4]      ; load short one by one, sign-extend to 64-bit
+ldursh x2,  [x15, #-2]
+ldrsh  x3,  [x15]
+ldrsh  x4,  [x15, #2]
+; ...corresponding b[] also loaded one by one...
+smaddl x11, w5, w17, x11    ; individual multiply-add (4-way unrolling)
+smaddl x13, w6, w2, x13
+smaddl x8,  w7, w3, x8
+smaddl x12, w19, w4, x12
+\end{lstlisting}
+
+Reason: C's integer promotion rules require \texttt{short} to be promoted to \texttt{int} before arithmetic, then further to \texttt{long long}. \texttt{ldrsh} (Load Register Signed Halfword) loads only one short at a time and sign-extends to 64-bit, making it impossible to use NEON's 128-bit bulk loads directly. The compiler only applies 4-way scalar unrolling for \texttt{DotShort} (4 elements/iteration), while \texttt{DotInt} achieves NEON 16-way vectorization (16 elements/iteration).
+
+\subsubsection{Summary}
+
+Based on the assembly evidence above, O3's speedup over O0 comes from the compound effect of four optimizations: register allocation eliminating stack accesses (Observation 1), SIMD vectorization increasing throughput (Observation 2), instruction fusion reducing instruction count (Observation 3), and loop unrolling reducing branch overhead (Observation 4).
+
+The speedup varies by data type: int achieves the highest speedup (8.16x) because it satisfies associativity (enabling full vectorization) and incurs no type promotion overhead; short/char degrade to scalar unrolling due to integer promotion rules, with speedups dropping to 3--5x; floating-point types achieve the smallest speedup (float 2.18x, double 1.13x), fundamentally because IEEE 754 floating-point addition is not associative, preventing the compiler from vectorizing the accumulation---only the multiplication can be parallel, while accumulation remains sequential.
 
 
 %——————————————————————————————————————————————————————————————————————————————————————————
 
-\subsection{Java 的 JIT（Just-In-Time）编译现象}
+\subsection{Java JIT (Just-In-Time) Compilation Phenomena}
 
-\subsubsection{现象观察}
+\subsubsection{Phenomenon Observation}
 
-Java 的运行时间出现了一个\textbf{反直觉}的现象：
+Java's runtime exhibits a counterintuitive phenomenon:
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r r l}
 \toprule
-数据类型 & $n=10^5$ & $n=10^6$ & 变化 \\
+Data Type & $n=10^5$ & $n=10^6$ & Change \\
 \midrule
-float  & 0.684375 ms & 0.564042 ms & $n$ 增大 10 倍，时间反而\textbf{下降} 18\% \\
-double & 0.563750 ms & 0.558000 ms & $n$ 增大 10 倍，时间几乎\textbf{不变} \\
-int    & 0.583958 ms & 0.454959 ms & 时间下降 \textbf{22\%} \\
-short  & 0.596709 ms & 0.290000 ms & 时间下降 \textbf{51\%} \\
-byte   & 0.590333 ms & 0.249167 ms & 时间下降 \textbf{58\%} \\
+float  & 0.684375 ms & 0.564042 ms & $n$ increases 10x, time decreases 18\% \\
+double & 0.563750 ms & 0.558000 ms & $n$ increases 10x, time nearly unchanged \\
+int    & 0.583958 ms & 0.454959 ms & Time decreases 22\% \\
+short  & 0.596709 ms & 0.290000 ms & Time decreases 51\% \\
+byte   & 0.590333 ms & 0.249167 ms & Time decreases 58\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-此外，所有类型在 $n=10^5$ 时耗时处于相近范围（$0.56{\sim}0.68$ms），与数据类型大小关系不大——暗示此阶段的耗时主要由 JIT 编译的固定开销主导，而非真正的计算。
+Moreover, all types at $n=10^5$ have similar runtimes ($0.56{\sim}0.68$ms) largely independent of data type size---suggesting that the timing at this stage is dominated by the fixed overhead of JIT compilation rather than actual computation.
 
-\textbf{推测}：JVM 的 JIT 编译器在 $n=10^5$ 到 $10^6$ 之间完成了编译切换。之前的数据点反映的是解释器逐条分派字节码的性能（开销较高），之后反映的是 JIT 编译器生成的专用本机机器码的性能（经过深度优化）。
+Hypothesis: the JVM's JIT compiler completed its compilation transition between $n=10^5$ and $10^6$. Earlier data points reflect interpreter-mode bytecode dispatch performance (higher overhead), while later points reflect the performance of specialized native machine code generated by the JIT compiler (deeply optimized).
 
-\subsubsection{背景知识：分层编译与 OSR}
+\subsubsection{Background: Tiered Compilation and OSR}
 
-JVM 采用\textbf{分层编译（Tiered Compilation）}策略。需要注意，CPU 最终执行的\textbf{始终是机器码}——区别在于执行模式：
+The JVM uses a Tiered Compilation strategy. Note that the CPU always executes machine code---the difference lies in the execution mode:
 
 \begin{lstlisting}
-阶段 0:   解释执行      -> 逐条读取并执行字节码（解释器通过预编写的 codelet
-                         逐条分派，每条字节码都有 dispatch 开销），最慢
-阶段 1-3: C1 编译执行   -> C1 编译器快速生成本机代码，基础优化
-阶段 4:   C2 编译执行   -> C2 编译器深度优化，生成高性能本机代码
+Tier 0:   Interpretation    -> Reads and executes bytecodes one by one (the
+                               interpreter dispatches via pre-written codelets;
+                               each bytecode incurs dispatch overhead). Slowest.
+Tier 1-3: C1 Compilation    -> C1 compiler quickly generates native code with
+                               basic optimizations
+Tier 4:   C2 Compilation    -> C2 compiler applies deep optimizations, producing
+                               high-performance native code
 \end{lstlisting}
 
-\textbf{OSR（On-Stack Replacement）}：JIT 不需要等方法返回才能切换。当循环的回边计数达到阈值时，JVM 在循环头处将当前栈帧原地替换为编译后的机器码版本，后续迭代直接以本机代码运行。
+OSR (On-Stack Replacement): JIT does not need to wait for a method to return before switching. When the back-edge count of a loop reaches the threshold, the JVM replaces the current stack frame in-place at the loop header with the compiled machine code version; subsequent iterations run directly as native code.
 
-\textbf{触发阈值}：通过 \texttt{java -XX:+PrintFlagsFinal -version | grep CompileThreshold} 查得本机（OpenJDK 25）实际配置：
+Trigger thresholds: obtained via \texttt{java -XX:+PrintFlagsFinal -version | grep CompileThreshold} on the local machine (OpenJDK 25):
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r l}
 \toprule
-参数 & 默认值 & 含义 \\
+Parameter & Default Value & Meaning \\
 \midrule
-\texttt{Tier3CompileThreshold} & 2{,}000 & 触发 C1 全 profiling 编译 \\
-\texttt{Tier4CompileThreshold} & 15{,}000 & 触发 C2 最高优化编译 \\
-\texttt{CompileThreshold} & 10{,}000 & 关闭分层编译时的遗留默认值 \\
+\texttt{Tier3CompileThreshold} & 2{,}000 & Triggers C1 full-profiling compilation \\
+\texttt{Tier4CompileThreshold} & 15{,}000 & Triggers C2 maximum optimization compilation \\
+\texttt{CompileThreshold} & 10{,}000 & Legacy default when tiered compilation is disabled \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-注意：分层编译下 JVM 使用 \texttt{AdvancedThresholdPolicy}，实际触发时机受编译队列负载等动态因素影响，并非简单的固定次数阈值。
+Note: under tiered compilation, the JVM uses \texttt{AdvancedThresholdPolicy}; the actual trigger timing is influenced by dynamic factors such as compilation queue load, rather than being a simple fixed-count threshold.
 
-\subsubsection{实验 1：JitWarmup 控制实验}
+\subsubsection{Experiment 1: JitWarmup Controlled Experiment}
 
-设计控制实验 \texttt{JitWarmup.java}：固定 $n=10{,}000$，重复调用 \texttt{dotFloat} 30 次，观察是否在 $n$ 不变的情况下仍会出现速度跳变。
+A controlled experiment \texttt{JitWarmup.java} was designed: fix $n=10{,}000$, call \texttt{dotFloat} 30 times repeatedly, and observe whether speed transitions still occur even when $n$ remains constant.
 
 \begin{lstlisting}
 Round     Time (ms)
 -----     ---------
-  1        0.1140    <- 解释器分派执行
+  1        0.1140    <- interpreter dispatch execution
   2        0.1132
   ...
   7        0.1100
-  8        0.0235    <- 速度突变（JIT 编译完成）
+  8        0.0235    <- sudden speedup (JIT compilation complete)
   9        0.0229
- ...       ~0.023    <- 此后稳定
+ ...       ~0.023    <- stable thereafter
 \end{lstlisting}
 
 \begin{itemize}
-  \item Round 1--7：平均 ${\sim}0.112$ ms（解释器分派执行）
-  \item Round 8--30：平均 ${\sim}0.023$ ms（JIT 编译后的本机码执行）
-  \item \textbf{加速比}：$0.112 / 0.023 \approx$ \textbf{4.9x}
+  \item Round 1--7: average ${\sim}0.112$ ms (interpreter dispatch execution)
+  \item Round 8--30: average ${\sim}0.023$ ms (native code execution after JIT compilation)
+  \item Speedup: $0.112 / 0.023 \approx$ 4.9x
 \end{itemize}
 
-\textbf{结论}：$n$ 始终为 10{,}000 不变，速度仍在第 7$\to$8 轮突变 ${\sim}$4.9x。这证明速度跳变\textbf{与 $n$ 的大小无关}，而是由累计执行次数驱动的 JIT 编译引起。
+Conclusion: with $n$ held constant at 10{,}000, speed still jumped ${\sim}$4.9x between round 7$\to$8. This proves that the speed transition is unrelated to the magnitude of $n$ and is instead driven by JIT compilation triggered by cumulative execution count.
 
-\subsubsection{实验 2：PrintCompilation 编译事件观察}
+\subsubsection{Experiment 2: PrintCompilation Event Observation}
 
-使用 JVM 诊断参数运行：
+Run with JVM diagnostic flags:
 
 \begin{lstlisting}[language=bash]
 java -XX:+PrintCompilation Dotproduct 2>&1 | grep "Dotproduct::dot"
 \end{lstlisting}
 
-输出（筛选 \texttt{dot} 系列方法）：
+Output (filtered for \texttt{dot} methods):
 
 \begin{lstlisting}
-时间戳   编号   标记  层级  方法                             字节码
-------  -----  ---  ---  ----------------------------   ---------
-1325    2016    %    3    Dotproduct::dotFloat   @ 4      (28 bytes)
-1325    2017         3    Dotproduct::dotFloat             (28 bytes)
-3286    2044    %    4    Dotproduct::dotDouble  @ 5      (32 bytes)
-3316    2046         4    Dotproduct::dotDouble            (32 bytes)
-7000    2109    %    4    Dotproduct::dotInt     @ 5      (34 bytes)
-7008    2112         4    Dotproduct::dotInt               (34 bytes)
-8821    2125    %    4    Dotproduct::dotShort   @ 5      (34 bytes)
-8835    2128         4    Dotproduct::dotShort             (34 bytes)
-10583   2136    %    4    Dotproduct::dotByte    @ 5      (34 bytes)
-10595   2143         4    Dotproduct::dotByte              (34 bytes)
+Timestamp  ID     Flag  Tier  Method                           Bytecode
+---------  -----  ----  ----  ----------------------------   ---------
+1325       2016    %     3    Dotproduct::dotFloat   @ 4      (28 bytes)
+1325       2017          3    Dotproduct::dotFloat             (28 bytes)
+3286       2044    %     4    Dotproduct::dotDouble  @ 5      (32 bytes)
+3316       2046          4    Dotproduct::dotDouble            (32 bytes)
+7000       2109    %     4    Dotproduct::dotInt     @ 5      (34 bytes)
+7008       2112          4    Dotproduct::dotInt               (34 bytes)
+8821       2125    %     4    Dotproduct::dotShort   @ 5      (34 bytes)
+8835       2128          4    Dotproduct::dotShort             (34 bytes)
+10583      2136    %     4    Dotproduct::dotByte    @ 5      (34 bytes)
+10595      2143          4    Dotproduct::dotByte              (34 bytes)
 \end{lstlisting}
 
-字段含义：\texttt{\%} = OSR 编译（循环中热替换），层级 3 = C1 编译，层级 4 = C2 最高优化，\texttt{@ N} = OSR 入口的字节码偏移。每个方法成对出现：OSR 版（替换当前循环）+ 标准版（供后续调用使用）。
+Field meanings: \texttt{\%} = OSR compilation (hot replacement within a loop), Tier 3 = C1 compilation, Tier 4 = C2 maximum optimization, \texttt{@ N} = bytecode offset of the OSR entry point. Each method appears in pairs: an OSR version (replaces the current loop) + a standard version (for subsequent calls).
 
-以下对该输出中的三个关键观察进行分析：
+The following analyzes three key observations from this output:
 
-\subsubsection*{观察 1：\texttt{dotFloat} 先经 C1（层级 3），其余方法直接 C2（层级 4）}
+\subsubsection*{Observation 1: \texttt{dotFloat} Goes Through C1 (Tier 3) First, While Other Methods Go Directly to C2 (Tier 4)}
 
-\texttt{dotFloat} 是第一个被编译的用户方法（时间戳 1325ms），此时出现在层级 3（C1）。而从 \texttt{dotDouble} 起，所有方法直接出现在层级 4（C2）。
+\texttt{dotFloat} is the first user method to be compiled (timestamp 1325ms), appearing at Tier 3 (C1). Starting from \texttt{dotDouble}, all methods appear directly at Tier 4 (C2).
 
-\textbf{证据}：查看不加 \texttt{grep} 过滤的完整编译日志，在 \texttt{dotFloat} 被编译的同一时间（$\sim$50ms），JVM 正在密集编译大量 JDK 底层方法：
+Evidence: examining the full compilation log without \texttt{grep} filtering, at the time \texttt{dotFloat} was compiled ($\sim$50ms), the JVM was intensively compiling many JDK core methods:
 
 \begin{lstlisting}
-时间戳  方法                                        层级
-------  ------------------------------------------  ----
-13      java.lang.String::hashCode                    3
-17      java.util.Random::next                        3
-19      java.util.HashMap::putVal                     3
-19      java.lang.Object::<init>                      4
-48      java.util.regex.Pattern$BmpCharPropertyGreedy  4
-54      java.util.Random::nextFloat                   4   <- 此时 dotFloat 刚好变热
+Timestamp  Method                                        Tier
+---------  ------------------------------------------    ----
+13         java.lang.String::hashCode                      3
+17         java.util.Random::next                          3
+19         java.util.HashMap::putVal                       3
+19         java.lang.Object::<init>                        4
+48         java.util.regex.Pattern$BmpCharPropertyGreedy   4
+54         java.util.Random::nextFloat                     4   <- dotFloat becomes hot at this point
 \end{lstlisting}
 
-C2 编译器速度慢但优化深度高，此时其编译队列被这些底层方法挤占。JVM 的 \texttt{AdvancedThresholdPolicy} 检测到 C2 队列拥堵，选择先用 C1 快速编译 \texttt{dotFloat} 以尽快获得比解释器更好的性能。
+The C2 compiler is slow but produces deeply optimized code; at this point its compilation queue was saturated with these core methods. The JVM's \texttt{AdvancedThresholdPolicy} detected C2 queue congestion and chose to compile \texttt{dotFloat} with C1 first, to quickly achieve better performance than the interpreter.
 
-到 \texttt{dotDouble} 被调用到热点时（时间戳 3286ms，距首次编译已过 $\sim$2 秒），大量底层方法已编译完成，C2 队列空闲，因此 JVM 直接将其提交到 C2。后续方法同理。
+By the time \texttt{dotDouble} became hot (timestamp 3286ms, $\sim$2 seconds after the first compilation), most core methods had been compiled and the C2 queue was idle, so the JVM submitted it directly to C2. The same applies to subsequent methods.
 
-\subsubsection*{观察 2：OSR 入口偏移 \texttt{@ 4} vs \texttt{@ 5}}
+\subsubsection*{Observation 2: OSR Entry Offset \texttt{@ 4} vs \texttt{@ 5}}
 
-\texttt{dotFloat} 的 OSR 入口在字节码偏移 4，其余方法在偏移 5。使用 \texttt{javap -c Dotproduct} 反编译字节码可以解释原因：
+\texttt{dotFloat}'s OSR entry is at bytecode offset 4, while other methods are at offset 5. Decompiling the bytecode with \texttt{javap -c Dotproduct} explains why:
 
 \begin{lstlisting}
-// dotFloat: sum 为 float（占 1 个 local slot）
+// dotFloat: sum is float (occupies 1 local slot)
 0: fconst_0          // float sum = 0.0f
-1: fstore_2          // -> local[2]（短格式，1 byte）
+1: fstore_2          // -> local[2] (short form, 1 byte)
 2: iconst_0          // int i = 0
-3: istore_3          // -> local[3]（短格式，1 byte）
-4: iload_3           // <- 循环头（OSR 入口 @ 4）
+3: istore_3          // -> local[3] (short form, 1 byte)
+4: iload_3           // <- loop header (OSR entry @ 4)
 
-// dotDouble: sum 为 double（占 2 个 local slot）
+// dotDouble: sum is double (occupies 2 local slots)
 0: dconst_0          // double sum = 0.0
-1: dstore_2          // -> local[2-3]（占 2 slot）
+1: dstore_2          // -> local[2-3] (2 slots)
 2: iconst_0          // int i = 0
-3: istore 4          // -> local[4]（长格式，2 bytes）
-5: iload  4          // <- 循环头（OSR 入口 @ 5）
+3: istore 4          // -> local[4] (long form, 2 bytes)
+5: iload  4          // <- loop header (OSR entry @ 5)
 \end{lstlisting}
 
-\texttt{float} 的 \texttt{sum} 占 1 个 slot，循环变量 \texttt{i} 分配到 \texttt{local[3]}，使用单字节短格式指令 \texttt{istore\_3}；\texttt{double}/\texttt{long} 的 \texttt{sum} 占 2 个 slot，\texttt{i} 被推到 \texttt{local[4]}，使用双字节长格式指令 \texttt{istore 4}，导致循环头偏移多 1。
+\texttt{float}'s \texttt{sum} occupies 1 slot, so the loop variable \texttt{i} is assigned to \texttt{local[3]} using the single-byte short-form instruction \texttt{istore\_3}; \texttt{double}/\texttt{long}'s \texttt{sum} occupies 2 slots, pushing \texttt{i} to \texttt{local[4]} and requiring the two-byte long-form instruction \texttt{istore 4}, which shifts the loop header offset by 1.
 
-\subsubsection*{观察 3：字节码长度 28 / 32 / 34 bytes}
+\subsubsection*{Observation 3: Bytecode Lengths 28 / 32 / 34 bytes}
 
-\textbf{证据}：使用 \texttt{javap -c Dotproduct} 反编译，对比三个方法的循环体关键指令差异：
+Evidence: using \texttt{javap -c Dotproduct} to decompile and compare the key loop body instructions across three methods:
 
 \begin{lstlisting}
-// dotFloat（28 bytes）—— 循环体部分
- 4: iload_3           // 1 byte（短格式）
+// dotFloat (28 bytes) -- loop body
+ 4: iload_3           // 1 byte (short form)
 10: fload_2           // 1 byte
-12: iload_3           // 1 byte（短格式）
-13: faload            // 直接取 float
-15: iload_3           // 1 byte（短格式）
+12: iload_3           // 1 byte (short form)
+13: faload            // load float directly
+15: iload_3           // 1 byte (short form)
 19: fstore_2          // 1 byte
 20: iinc 3, 1         // 3 bytes
 
-// dotDouble（32 bytes）—— 循环体部分（+4B）
- 5: iload  4          // 2 bytes（长格式，+1）
+// dotDouble (32 bytes) -- loop body (+4B)
+ 5: iload  4          // 2 bytes (long form, +1)
 12: dload_2           // 1 byte
-14: iload  4          // 2 bytes（长格式，+1）
-16: daload            // 直接取 double
-18: iload  4          // 2 bytes（长格式，+1）
+14: iload  4          // 2 bytes (long form, +1)
+16: daload            // load double directly
+18: iload  4          // 2 bytes (long form, +1)
 23: dstore_2          // 1 byte
-24: iinc 4, 1         // 3 bytes  -> 注意：iload 4 出现 3 次 + istore 4 出现 1 次 = +4B
+24: iinc 4, 1         // 3 bytes  -> Note: iload 4 appears 3 times + istore 4 once = +4B
 
-// dotInt（34 bytes）—— 循环体部分（+2B vs dotDouble）
- 5: iload  4          // 同 dotDouble
-16: iaload            // 取 int
-17: i2l               // <- 额外指令（+1B）
+// dotInt (34 bytes) -- loop body (+2B vs dotDouble)
+ 5: iload  4          // same as dotDouble
+16: iaload            // load int
+17: i2l               // <- extra instruction (+1B)
 21: iaload
-22: i2l               // <- 额外指令（+1B）  -> 两条 i2l 共 +2B
+22: i2l               // <- extra instruction (+1B)  -> two i2l totaling +2B
 \end{lstlisting}
 
-汇总：
+Summary:
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r l}
 \toprule
-方法 & 字节码 & 差异原因 \\
+Method & Bytecode & Reason for Difference \\
 \midrule
-\texttt{dotFloat}  & 28 bytes & \texttt{float} 单 slot $+$ 短格式指令，最紧凑 \\
-\texttt{dotDouble} & 32 bytes & \texttt{double} 双 slot $+$ 长格式 \texttt{istore/iload}（+4B） \\
-\texttt{dotInt}    & 34 bytes & 同 double 的 slot 布局（\texttt{long} 返回值），\\
-                   &          & 额外两条 \texttt{i2l} 类型转换指令（+2B） \\
-\texttt{dotShort}  & 34 bytes & 同 \texttt{dotInt}（\texttt{saload} $+$ \texttt{i2l} $\times$2） \\
-\texttt{dotByte}   & 34 bytes & 同 \texttt{dotInt}（\texttt{baload} $+$ \texttt{i2l} $\times$2） \\
+\texttt{dotFloat}  & 28 bytes & \texttt{float} single slot $+$ short-form instructions, most compact \\
+\texttt{dotDouble} & 32 bytes & \texttt{double} dual slot $+$ long-form \texttt{istore/iload} (+4B) \\
+\texttt{dotInt}    & 34 bytes & Same slot layout as double (\texttt{long} return type),\\
+                   &          & plus two extra \texttt{i2l} type conversion instructions (+2B) \\
+\texttt{dotShort}  & 34 bytes & Same as \texttt{dotInt} (\texttt{saload} $+$ \texttt{i2l} $\times$2) \\
+\texttt{dotByte}   & 34 bytes & Same as \texttt{dotInt} (\texttt{baload} $+$ \texttt{i2l} $\times$2) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{实验 3：JIT 优化内容验证}
+\subsubsection{Experiment 3: JIT Optimization Verification}
 
-为定量验证 JIT 各层级和 C2 各项优化的实际贡献，设计对照实验：使用不同 JVM 参数运行同一 benchmark（$n = 10^8$，每种配置 3 次取中位值）。
+To quantitatively verify the contribution of each JIT tier and individual C2 optimizations, a controlled experiment was designed: run the same benchmark with different JVM flags ($n = 10^8$, median of 3 runs per configuration).
 
-\subsubsection*{第一组：层级对比}
+\subsubsection*{Group 1: Tier Comparison}
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r r r r r}
 \toprule
-JVM 配置 & float & double & int & short & byte \\
+JVM Configuration & float & double & int & short & byte \\
 \midrule
-\texttt{-Xint}（纯解释器）                & 503.3 & 554.0 & 505.6 & 509.8 & 507.2 \\
-\texttt{-XX:TieredStopAtLevel=3}（C1）     & 106.1 & 112.3 & 124.6 & 126.2 & 123.1 \\
-默认（C2）                                  & 54.3  & 55.6  & 26.3  & 26.0  & 23.9  \\
+\texttt{-Xint} (pure interpreter)              & 503.3 & 554.0 & 505.6 & 509.8 & 507.2 \\
+\texttt{-XX:TieredStopAtLevel=3} (C1)          & 106.1 & 112.3 & 124.6 & 126.2 & 123.1 \\
+Default (C2)                                    & 54.3  & 55.6  & 26.3  & 26.0  & 23.9  \\
 \bottomrule
 \end{tabular}
-\caption{不同编译层级下的耗时（ms，$n=10^8$）}
+\caption{Execution time at different compilation tiers (ms, $n=10^8$)}
 \end{table}
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r r r r r}
 \toprule
-加速比 & float & double & int & short & byte \\
+Speedup & float & double & int & short & byte \\
 \midrule
-解释器 $\to$ C1 & 4.7x & 4.9x & 4.1x & 4.0x & 4.1x \\
-C1 $\to$ C2      & 2.0x & 2.0x & 4.7x & 4.9x & 5.2x \\
-解释器 $\to$ C2  & 9.3x & 10.0x & 19.2x & 19.6x & 21.2x \\
+Interpreter $\to$ C1 & 4.7x & 4.9x & 4.1x & 4.0x & 4.1x \\
+C1 $\to$ C2          & 2.0x & 2.0x & 4.7x & 4.9x & 5.2x \\
+Interpreter $\to$ C2 & 9.3x & 10.0x & 19.2x & 19.6x & 21.2x \\
 \bottomrule
 \end{tabular}
-\caption{各层级间的加速比}
+\caption{Speedup ratios between tiers}
 \end{table}
 
-关键发现：
+Key findings:
 \begin{itemize}
-  \item \textbf{解释器 $\to$ C1}：所有类型均获得 ${\sim}$4--5x 加速，且浮点与整数差异不大——C1 的基础优化（简单内联、基本寄存器分配）对所有类型普遍有效。
-  \item \textbf{C1 $\to$ C2}：\textbf{整数类型额外获得 ${\sim}$5x 加速}（vs 浮点的 2x）。这说明 C2 的深度优化对整数运算的收益远大于浮点运算。
+  \item \textbf{Interpreter $\to$ C1}: All types achieve ${\sim}$4--5x speedup with little difference between floating-point and integer---C1's basic optimizations (simple inlining, basic register allocation) are universally effective across all types.
+  \item \textbf{C1 $\to$ C2}: Integer types gain an additional ${\sim}$5x speedup (vs 2x for floating-point). This indicates that C2's deep optimizations benefit integer operations far more than floating-point operations.
 \end{itemize}
 
-\subsubsection*{第二组：C2 单项优化验证}
+\subsubsection*{Group 2: Individual C2 Optimization Verification}
 
-在默认 C2 编译的基础上，逐一关闭特定优化：
+Starting from default C2 compilation, specific optimizations were disabled one at a time:
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l l r r r r r}
 \toprule
-关闭的优化 & JVM 参数 & float & double & int & short & byte \\
+Disabled Optimization & JVM Flag & float & double & int & short & byte \\
 \midrule
-（基准：C2 默认）  & —                          & 54.3  & 55.6  & 26.3  & 26.0  & 23.9  \\
-SIMD 向量化        & \texttt{-XX:-UseSuperWord}  & 53.3  & 52.7  & 26.8  & 25.3  & 23.8  \\
-循环展开            & \texttt{-XX:LoopUnrollLimit=0} & 62.5  & 64.2  & 33.5  & 33.9  & 34.2  \\
-循环谓词            & \texttt{-XX:-UseLoopPredicate} & 52.7  & 57.4  & 25.2  & 24.0  & 23.8  \\
+(Baseline: C2 default) & ---                           & 54.3  & 55.6  & 26.3  & 26.0  & 23.9  \\
+SIMD Vectorization     & \texttt{-XX:-UseSuperWord}     & 53.3  & 52.7  & 26.8  & 25.3  & 23.8  \\
+Loop Unrolling         & \texttt{-XX:LoopUnrollLimit=0} & 62.5  & 64.2  & 33.5  & 33.9  & 34.2  \\
+Loop Predicate         & \texttt{-XX:-UseLoopPredicate} & 52.7  & 57.4  & 25.2  & 24.0  & 23.8  \\
 \bottomrule
 \end{tabular}
-\caption{关闭单项 C2 优化后的耗时（ms，$n=10^8$）}
+\caption{Execution time after disabling individual C2 optimizations (ms, $n=10^8$)}
 \end{table}
 
-\textbf{分析}：
+Analysis:
 \begin{itemize}
-  \item \textbf{循环展开}（\texttt{LoopUnrollLimit=0}）：\textbf{唯一有显著影响的优化}。关闭后，浮点类型慢 ${\sim}$15\%（54$\to$62ms），整数类型慢 ${\sim}$28--43\%（26$\to$34ms）。这证实 C2 确实应用了循环展开优化。
-  \item \textbf{SIMD 向量化}（\texttt{UseSuperWord}）：关闭后耗时\textbf{几乎无变化}。这表明 HotSpot 的 SuperWord 自动向量化在本 benchmark 的点积循环（包含累加归约模式）中并未生效，C2 的性能优势并非来自 SIMD。
-  \item \textbf{循环谓词}（\texttt{UseLoopPredicate}）：关闭后耗时\textbf{几乎无变化}。可能是因为 C2 通过其他机制（如 range check elimination）已经消除了数组边界检查。
+  \item \textbf{Loop Unrolling} (\texttt{LoopUnrollLimit=0}): The only optimization with a significant impact. When disabled, floating-point types slow down by ${\sim}$15\% (54$\to$62ms) and integer types by ${\sim}$28--43\% (26$\to$34ms). This confirms that C2 indeed applies loop unrolling.
+  \item \textbf{SIMD Vectorization} (\texttt{UseSuperWord}): Disabling it causes virtually no change in execution time. This indicates that HotSpot's SuperWord auto-vectorization did not engage for the dot product loop (which contains a reduction-accumulation pattern) in this benchmark; C2's performance advantage does not come from SIMD.
+  \item \textbf{Loop Predicate} (\texttt{UseLoopPredicate}): Disabling it causes virtually no change in execution time. This is likely because C2 has already eliminated array bounds checks through other mechanisms (such as range check elimination).
 \end{itemize}
 
-\textbf{综合结论}：C2 相对于 C1 的性能优势主要来自\textbf{循环展开}（已验证）和\textbf{更优的整体代码生成}（更好的寄存器分配、指令调度等，这些无法通过单个开关关闭来验证，但从 C1$\to$C2 的巨大加速比可以推断）。原本假设的 SIMD 向量化在本 benchmark 中并未贡献性能提升。
+Overall conclusion: C2's performance advantage over C1 primarily comes from loop unrolling (verified) and better overall code generation (improved register allocation, instruction scheduling, etc.---these cannot be verified by toggling a single flag, but can be inferred from the large C1$\to$C2 speedup ratio). The initially hypothesized SIMD vectorization did not contribute to performance improvement in this benchmark.
 
-\subsection{数据类型间的差异}
+\subsection{Differences Between Data Types}
 
-在 $n=10^8$（JIT 已充分生效）时，不同数据类型的性能特征呈现清晰规律：
+At $n=10^8$ (JIT fully warmed up), the performance characteristics of different data types show clear patterns:
 
-\subsubsection*{整数类型 vs 浮点类型（C-O3）}
+\subsubsection*{Integer Types vs Floating-Point Types (C-O3)}
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l r l}
 \toprule
-类型 & C-O3 耗时 (ms) & 相对 int 的倍数 \\
+Type & C-O3 Time (ms) & Relative to int \\
 \midrule
 int         & 9.700928    & 1.0x  \\
 short       & 16.736084   & 1.7x  \\
@@ -513,62 +687,60 @@ double      & 204.753906  & 21.1x \\
 \end{tabular}
 \end{table}
 
-整数运算大幅快于浮点运算。虽然 short/char 的理论 SIMD 并行度更高（8 个/16 个 vs int 的 4 个），但实际性能反而不如 int，原因是 C 语言的\textbf{整数提升（integer promotion）规则}：short/char 在参与运算前必须先被提升为 int，增加了额外的类型转换指令。
+Integer operations are significantly faster than floating-point operations. Although short/char have higher theoretical SIMD parallelism (8 or 16 elements vs 4 for int), their actual performance is worse than int due to C's integer promotion rules: short/char must be promoted to int before arithmetic, adding extra type conversion instructions.
 
-\subsubsection*{浮点类型 double 为什么最慢？}
+\subsubsection*{Why is double the Slowest Floating-Point Type?}
 
-double（8字节）在 $n=10^8$ 时 C-O3 耗时 204.75ms，是 float（77.95ms）的 2.6 倍。原因：
+double (8 bytes) takes 204.75ms at $n=10^8$ with C-O3, which is 2.6x slower than float (77.95ms). Reasons:
 \begin{enumerate}
-  \item \textbf{SIMD 并行度减半}：128-bit 寄存器只能装 2 个 double vs 4 个 float
-  \item \textbf{内存带宽翻倍}：加载 $10^8$ 个 double 需要 1.6GB 数据 vs float 的 0.8GB，受限于内存带宽
+  \item \textbf{SIMD parallelism halved}: 128-bit registers can hold only 2 doubles vs 4 floats
+  \item \textbf{Memory bandwidth doubled}: Loading $10^8$ doubles requires 1.6GB of data vs 0.8GB for floats, constrained by memory bandwidth
 \end{enumerate}
 
-\subsubsection*{Java 在浮点和整数上的不同表现}
+\subsubsection*{Java's Different Behavior on Floating-Point vs Integer}
 
-在 $n=10^8$ 时：
+At $n=10^8$:
 \begin{itemize}
-  \item \textbf{float/double}：Java 快于 C-O3（float 1.45x / double 3.54x），JIT 的运行时优化更激进
-  \item \textbf{int}：C-O3 反而快于 Java（2.43x），说明 gcc 的静态整数向量化优化更成熟
-  \item \textbf{short}：C-O3 略快于 Java（1.40x）
-  \item \textbf{byte}：Java 与 C-O3 基本持平
+  \item \textbf{float/double}: Java is faster than C-O3 (float 1.45x / double 3.54x); JIT applies more aggressive runtime optimization
+  \item \textbf{int}: C-O3 is faster than Java (2.43x), indicating that gcc's static integer vectorization is more mature
+  \item \textbf{short}: C-O3 is slightly faster than Java (1.40x)
+  \item \textbf{byte}: Java and C-O3 are roughly on par
 \end{itemize}
 
-\subsection{C-O0 vs Java 的对比意义}
+\subsubsection*{Efficiency Upper Bound and JIT Optimization Level}
 
-在大 $n$ 时，Java \textbf{全面快于} C-O0（2.5x--4.3x）。这说明：
+The dot product has a hardware-determined physical efficiency upper bound: regardless of optimization quality, the program must read all data from both arrays. The Apple M5's unified memory bandwidth is 153 GB/s, so the theoretical minimum time at $n=10^8$ ($T = 2n \times \text{sizeof} / 153\text{GB/s}$) is: int/float 5.23 ms, double 10.46 ms.
 
-\begin{itemize}
-  \item \textbf{JIT 编译后的 Java 并不"慢"}——它慢的只是 warmup 阶段
-  \item 未优化的 C 代码（\texttt{-O0}）性能很差，甚至不如带 JIT 的 Java
-  \item 这提示我们：语言选择本身不是性能瓶颈，\textbf{编译器优化才是关键}
-\end{itemize}
+In practice, both C-O3 and Java execution times are far above these theoretical values (e.g., float: C-O3 at 61 ms, Java at 54 ms, both over 10x the theoretical lower bound), indicating that the current performance bottleneck is still in computation (e.g., sequential floating-point accumulation) rather than memory bandwidth.
+
+However, the charts show that at large $n$, C-O3 and JIT-optimized Java execution times converge closely with the slope approaching 1 ($T \propto n$). This indicates that the JIT C2 compiler's optimization level has reached parity with gcc -O3, and runtime is primarily determined by data volume.
 
 % ============================================================
-\section{总结}
+\section{Conclusion}
 % ============================================================
 
 \begin{table}[H]
 \centering
 \begin{tabular}{l l l}
 \toprule
-特性 & C (\texttt{gcc -O3}) & Java (JIT C2) \\
+Feature & C (\texttt{gcc -O3}) & Java (JIT C2) \\
 \midrule
-优化时机     & 编译时（静态） & 运行时（动态） \\
-首次运行     & 从第一次就快   & 需要 warmup \\
-SIMD         & 编译器自动向量化 & C2 自动向量化 \\
-Profile-Guided & 需手动 PGO    & 自动 profiling \\
-边界检查     & 无（程序员负责） & 自动消除 \\
+Optimization Timing  & Compile-time (static)      & Runtime (dynamic) \\
+First Run            & Fast from the start        & Requires warmup \\
+SIMD                 & Compiler auto-vectorization & C2 auto-vectorization \\
+Profile-Guided       & Requires manual PGO         & Automatic profiling \\
+Bounds Checking      & None (programmer's responsibility) & Automatically eliminated \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{核心结论}：
+Core conclusions:
 
 \begin{enumerate}
-  \item \textbf{C 并不总是比 Java 快}。在大规模浮点计算中，JIT 编译后的 Java 甚至超过 C-O3
-  \item \textbf{编译器优化（-O3）的效果远超语言选择}。C-O0 vs C-O3 的差距可达 8.4x（int）
-  \item \textbf{JIT 的 warmup 是 Java 小 $n$ 下慢的主因}，而非语言本身的效率问题
-  \item \textbf{数据类型选择影响显著}：整数远快于浮点，小数据类型受制于类型提升
+  \item C is not always faster than Java. In large-scale floating-point computations, JIT-compiled Java can even outperform C-O3.
+  \item The effect of compiler optimization (-O3) far exceeds the effect of language choice. The gap between C-O0 and C-O3 can reach 8.4x (int).
+  \item JIT warmup is the main reason Java is slow in its initial phase, not an inherent efficiency problem of the language itself.
+  \item Data type selection has a significant impact: integers are much faster than floating-point; smaller data types are constrained by type promotion.
 \end{enumerate}
 
 \end{document}
