@@ -1,6 +1,18 @@
-*.csv
+# macOS
+.DS_Store
+
+# Compiled binaries
+a
+dotproduct
+*.class
+*.o
+
+# LaTeX build artifacts
+build/
 *.aux
 *.log
 *.out
 *.synctex.gz
-*.pdf
+
+# Data files (can be regenerated)
+*.csv
