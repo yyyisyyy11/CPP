@@ -5,7 +5,7 @@ void div2(double val);
 
 int main()
 {
-    div2(1024.); // call the recursive function
+    div2(64.); // call the recursive function
     return 0;
 }
 
