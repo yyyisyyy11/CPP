@@ -26,9 +26,16 @@
 *.exe
 *.out
 *.app
-project_1/a
-project_1/calculator
-a.out
+
+# Ignore all files without an extension (C/C++ compiled binaries on macOS/Linux)
+# Then whitelist specific extensionless files that should be tracked
+*
+!*/
+!*.*
+!Makefile
+!LICENSE
+!README
+!Dockerfile
 
 # macOS specific
 .DS_Store
