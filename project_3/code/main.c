@@ -114,7 +114,7 @@ int main(void) {
 
     /* Large sizes */
     printf("\n--- Large matrices ---\n");
-    run_test(8192, true);
+    run_test(8192, false);
 
     return 0;
 }

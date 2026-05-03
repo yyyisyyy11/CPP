@@ -5,6 +5,16 @@
 #include <string.h>
 #include <math.h>
 
+/*
+ * Memory alignment for matrix data allocation.
+ *
+ * Set to 128 bytes to match the Apple M5's cache line size
+ * (verified via sysctl hw.cachelinesize = 128).
+ * This ensures each row's starting address doesn't straddle
+ * a cache line boundary, and prepares for SIMD aligned loads.
+ */
+#define MATRIX_ALIGN 128
+
 Matrix *matrix_create(size_t rows, size_t cols) {
     if (rows == 0 || cols == 0) {
         fprintf(stderr, "Error: matrix dimensions must be non-zero.\n");
@@ -20,14 +30,20 @@ Matrix *matrix_create(size_t rows, size_t cols) {
     mat->rows = rows;
     mat->cols = cols;
 
-    /* Use calloc to zero-initialize the data */
-    mat->data = (float *)calloc(rows * cols, sizeof(float));
-    if (mat->data == NULL) {
-        fprintf(stderr, "Error: failed to allocate matrix data (%zu x %zu).\n",
-                rows, cols);
+    /*
+     * Use posix_memalign for cache-line-aligned allocation.
+     * This avoids cache line splits and prepares for SIMD aligned loads.
+     * posix_memalign works with free() and has no size-multiple constraint.
+     */
+    size_t data_size = rows * cols * sizeof(float);
+    int ret = posix_memalign((void **)&mat->data, MATRIX_ALIGN, data_size);
+    if (ret != 0 || mat->data == NULL) {
+        fprintf(stderr, "Error: failed to allocate aligned matrix data "
+                "(%zu x %zu, align=%d).\n", rows, cols, MATRIX_ALIGN);
         free(mat);
         return NULL;
     }
+    memset(mat->data, 0, data_size);
 
     return mat;
 }

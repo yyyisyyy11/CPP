@@ -19,10 +19,10 @@
  * are accessed with stride-1 (contiguous) in the innermost loop.
  *
  * @param A     Pointer to element A[i_start][k_start] in the full matrix.
- * @param B     Pointer to element B[k_start][j_start] in the full matrix.
+ * @param B     Pointer to B data (may be packed with stride = ldb).
  * @param C     Pointer to element C[i_start][j_start] in the full matrix.
  * @param lda   Leading dimension (number of columns) of the full A matrix.
- * @param ldb   Leading dimension (number of columns) of the full B matrix.
+ * @param ldb   Leading dimension of B data (= n for unpacked, = tile_n for packed).
  * @param ldc   Leading dimension (number of columns) of the full C matrix.
  * @param tile_m Number of rows in this tile (may be < TILE_SIZE at edges).
  * @param tile_n Number of columns in this tile.
@@ -47,6 +47,28 @@ static inline void tile_multiply(const float *A, const float *B, float *C,
                 C[i * ldc + j] += a_ik * B[ki * ldb + j];
             }
         }
+    }
+}
+
+/**
+ * @brief Pack a sub-block of B into a contiguous buffer.
+ *
+ * Copies B[kk..kk+tile_k][jj..jj+tile_n] from the full matrix
+ * (with leading dimension n) into packed_B with leading dimension
+ * tile_n, eliminating the stride gap that causes cache set conflicts.
+ *
+ * @param src     Pointer to B[kk][jj] in the full matrix.
+ * @param dst     Destination buffer (must be >= tile_k * tile_n floats).
+ * @param src_ld  Leading dimension of the source (= n, full matrix width).
+ * @param tile_k  Number of rows to pack.
+ * @param tile_n  Number of columns to pack.
+ */
+static inline void pack_B_tile(const float *src, float *dst,
+                               size_t src_ld, size_t tile_k, size_t tile_n) {
+    for (size_t ki = 0; ki < tile_k; ki++) {
+        memcpy(&dst[ki * tile_n],          /* dst stride = tile_n (compact) */
+               &src[ki * src_ld],          /* src stride = n (sparse)       */
+               tile_n * sizeof(float));
     }
 }
 
@@ -92,7 +114,15 @@ bool matmul_improved(const Matrix *a, const Matrix *b, Matrix *c) {
      *   - For a fixed row-block of A (ii), we sweep through
      *     all k-blocks and j-blocks, accumulating into C.
      *   - This maximizes reuse of the A tile in registers/L1.
+     *
+     * Layer 2 optimization: B tile is packed into a contiguous buffer
+     * before computation to eliminate cache set conflicts caused by
+     * the large stride (ldb = n) between rows of the B sub-block.
      */
+
+    /* Buffer for packing B tiles (stack-allocated, fits in L1) */
+    float packed_B[TILE_SIZE * TILE_SIZE];
+
     for (size_t ii = 0; ii < m; ii += TILE_SIZE) {
         size_t tile_m = (ii + TILE_SIZE <= m) ? TILE_SIZE : (m - ii);
 
@@ -103,15 +133,28 @@ bool matmul_improved(const Matrix *a, const Matrix *b, Matrix *c) {
                 size_t tile_n = (jj + TILE_SIZE <= n) ? TILE_SIZE : (n - jj);
 
                 /*
+                 * Pack B[kk..kk+tile_k][jj..jj+tile_n] into packed_B.
+                 * This changes the effective ldb from n to tile_n,
+                 * making B tile rows contiguous in memory and
+                 * eliminating cache set conflicts.
+                 */
+                pack_B_tile(
+                    &data_b[kk * n + jj],  /* source: B sub-block */
+                    packed_B,              /* destination: compact buffer */
+                    n,                     /* source leading dimension */
+                    tile_k, tile_n         /* tile dimensions */
+                );
+
+                /*
                  * Compute C[ii..ii+tile_m][jj..jj+tile_n] +=
                  *     A[ii..ii+tile_m][kk..kk+tile_k] *
-                 *     B[kk..kk+tile_k][jj..jj+tile_n]
+                 *     packed_B[tile_k][tile_n]
                  */
                 tile_multiply(
                     &data_a[ii * k + kk],     /* A sub-block start */
-                    &data_b[kk * n + jj],     /* B sub-block start */
+                    packed_B,                  /* packed B (stride = tile_n) */
                     &data_c[ii * n + jj],     /* C sub-block start */
-                    k, n, n,                  /* leading dimensions */
+                    k, tile_n, n,             /* lda=k, ldb=tile_n, ldc=n */
                     tile_m, tile_n, tile_k    /* actual tile sizes */
                 );
             }
