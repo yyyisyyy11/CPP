@@ -1,0 +1,35 @@
+# Size-sweep benchmark: improved (NEON) vs OpenBLAS (AMX)
+# OMP_NUM_THREADS = 10
+size,data_MB,improved_gflops,openblas_gflops,gap_ratio
+128,0.2,35.2,279.6,7.93
+  [ 1/15]   128: improved=35.2  openblas=279.6  gap=7.93x
+256,0.8,78.2,335.5,4.29
+  [ 2/15]   256: improved=78.2  openblas=335.5  gap=4.29x
+384,1.7,139.1,976.3,7.02
+  [ 3/15]   384: improved=139.1  openblas=976.3  gap=7.02x
+512,3.0,160.6,1095.7,6.82
+  [ 4/15]   512: improved=160.6  openblas=1095.7  gap=6.82x
+640,4.7,196.9,1510.9,7.67
+  [ 5/15]   640: improved=196.9  openblas=1510.9  gap=7.67x
+768,6.8,242.2,1429.0,5.90
+  [ 6/15]   768: improved=242.2  openblas=1429.0  gap=5.90x
+896,9.2,305.8,1625.6,5.32
+  [ 7/15]   896: improved=305.8  openblas=1625.6  gap=5.32x
+1024,12.0,308.9,1357.4,4.39
+  [ 8/15]  1024: improved=308.9  openblas=1357.4  gap=4.39x
+1280,18.8,374.7,1346.1,3.59
+  [ 9/15]  1280: improved=374.7  openblas=1346.1  gap=3.59x
+1536,27.0,310.3,1323.3,4.27
+  [10/15]  1536: improved=310.3  openblas=1323.3  gap=4.27x
+2048,48.0,356.2,617.9,1.73
+  [11/15]  2048: improved=356.2  openblas=617.9  gap=1.73x
+3072,108.0,363.1,481.3,1.33
+  [12/15]  3072: improved=363.1  openblas=481.3  gap=1.33x
+4096,192.0,352.9,477.4,1.35
+  [13/15]  4096: improved=352.9  openblas=477.4  gap=1.35x
+6144,432.0,361.3,526.7,1.46
+  [14/15]  6144: improved=361.3  openblas=526.7  gap=1.46x
+8192,768.0,373.0,423.0,1.13
+  [15/15]  8192: improved=373.0  openblas=423.0  gap=1.13x
+
+Done! Pipe stdout to a .csv file for plotting.

@@ -20,6 +20,11 @@ Matrix *matrix_create(size_t rows, size_t cols) {
         fprintf(stderr, "Error: matrix dimensions must be non-zero.\n");
         return NULL;
     }
+    if (rows > 65536 || cols > 65536) {
+        fprintf(stderr, "Error: matrix dimensions too large "
+                "(%zu x %zu, max 65536 x 65536).\n", rows, cols);
+        return NULL;
+    }
 
     Matrix *mat = (Matrix *)malloc(sizeof(Matrix));
     if (mat == NULL) {
@@ -35,6 +40,13 @@ Matrix *matrix_create(size_t rows, size_t cols) {
      * This avoids cache line splits and prepares for SIMD aligned loads.
      * posix_memalign works with free() and has no size-multiple constraint.
      */
+    if (rows > SIZE_MAX / cols ||
+        rows * cols > SIZE_MAX / sizeof(float)) {
+        fprintf(stderr, "Error: matrix size overflow "
+                "(%zu x %zu exceeds SIZE_MAX).\n", rows, cols);
+        free(mat);
+        return NULL;
+    }
     size_t data_size = rows * cols * sizeof(float);
     int ret = posix_memalign((void **)&mat->data, MATRIX_ALIGN, data_size);
     if (ret != 0 || mat->data == NULL) {

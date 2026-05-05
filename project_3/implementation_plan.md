@@ -175,12 +175,47 @@ memset(mat->data, 0, rows * cols * sizeof(float));
 
 **预期效果：** ~10-20% 额外提升
 
+### 2.3 A 矩阵 Packing (Micro-Panel 打包)
+
+**原理：** 与 B Packing 对称，将 A 的 tile 子块也重排到连续内存。当 micro-kernel 同时读取 A 的多行（见 3.2 寄存器 Blocking）时，A 的行间距 `lda = k` 同样引发 cache set 冲突。
+
+**目前的问题：** micro-kernel 需要同时读取 A 的 `mr` 行（如 8 行）来填充寄存器累加器。这些行在原始矩阵中间距为 `lda * 4` 字节，当 `lda` 是 2 的幂时，多行映射到同一 cache set，产生与 B 相同的冲突淘汰问题。
+
+**做法：** 将 A tile 重排为按 `mr` 行一组的连续条带（panel），每组内按列优先存储，使 micro-kernel 可以连续加载 A 的多行元素：
+
+```c
+// 打包 A[ii..ii+tile_m][kk..kk+tile_k] 为 micro-panel 格式
+// 按 mr 行为一组，组内按列优先（column-major within panel）
+void pack_A_panel(const float *src, float *dst,
+                  size_t src_ld, size_t tile_m, size_t tile_k, size_t mr) {
+    for (size_t i = 0; i < tile_m; i += mr) {
+        size_t actual_mr = (i + mr <= tile_m) ? mr : (tile_m - i);
+        for (size_t ki = 0; ki < tile_k; ki++) {
+            for (size_t ir = 0; ir < actual_mr; ir++)
+                *dst++ = src[(i + ir) * src_ld + ki];
+            for (size_t ir = actual_mr; ir < mr; ir++)
+                *dst++ = 0.0f;  // 不足 mr 行时填零
+        }
+    }
+}
+
+// 打包后的内存布局（mr=8 为例）：
+// [a00 a10 a20 a30 a40 a50 a60 a70] [a01 a11 a21 ... a71] ...
+//  ^-- 第 0 列的 8 个元素连续           ^-- 第 1 列的 8 个元素连续
+```
+
+> **与 B Packing 的配合：** A pack 为 `mr * kc` panel，B pack 为 `kc * nr` panel。
+> micro-kernel 从 packed A 连续读 `mr` 个元素，从 packed B 连续读 `nr` 个元素，
+> 累加到寄存器中的 `mr * nr` 个 C 元素。三者配合实现 **全寄存器计算** -- 所有 load 都是连续地址，无 cache 冲突。
+
+**预期效果：** 配合寄存器 blocking micro-kernel，~10-20% 额外提升
+
 ---
 
-## 第三层：硬件并行
+## 第三层：硬件特性利用
 
-> 利用 CPU 硬件特性：SIMD 宽指令 + 多核并行。
-> 不改变算法逻辑和数据布局，只改变"用什么指令执行计算"。
+> 利用 CPU 硬件特性：SIMD 向量指令、寄存器文件深度、预取机制、多级缓存层次、多核并行。
+> 3.1-3.2 改变 `tile_multiply` 内部的计算方式，3.3-3.5 进一步压榨硬件能力。
 
 ### 3.1 ARM NEON SIMD
 
@@ -235,9 +270,149 @@ for (; j + 16 <= tile_n; j += 16) {
 }
 ```
 
-**预期效果：** ~4x 提升 -> 60-80 GFLOPS
+**预期效果：** ~2-3x 提升（相对于标量 tiling）
 
-### 3.2 OpenMP 多线程
+### 3.2 寄存器 Blocking (Micro-Kernel)
+
+**原理：** 3.1 的简单 NEON 向量化只利用了 SIMD 的"宽度"（一次算 4 个 float），但没有利用"深度" -- M5 有 **32 个 128-bit NEON 寄存器**（v0~v31）。寄存器 blocking 通过在寄存器中同时驻留 C 子块的 **多行累加器**，将计算/访存比从 O(1) 提升到 O(mr)。
+
+**这是从 ~30 GFLOPS 到 80+ GFLOPS 的关键一步**，也是 OpenBLAS、BLIS 等高性能库的核心技术。
+
+**Micro-kernel 尺寸选择：** `mr * nr = 8 * 16`
+
+- C 累加器：8 行 * 4 个 `float32x4_t` = **32 个寄存器**（刚好用满 v0~v31）
+- 每次 ki 迭代：加载 A 的 8 个标量（广播）+ B 的 16 个 float（4 组 NEON），执行 32 次 FMA
+- 32 次 FMA = 256 FLOP，但只需从 L1 加载 24 个 float, 计算密度极高
+
+```c
+#define MR 8
+#define NR 16
+
+// 8x16 micro-kernel: C[8][16] += A[8][kc] * B[kc][16]
+static inline void micro_kernel_8x16(
+    const float *packed_A, const float *packed_B,
+    float *C, size_t ldc, size_t kc) {
+
+    // C 累加器：32 个 NEON 寄存器
+    float32x4_t vc[8][4];
+    for (int i = 0; i < 8; i++)
+        for (int r = 0; r < 4; r++)
+            vc[i][r] = vld1q_f32(&C[i * ldc + r * 4]);
+
+    // 主循环：沿 k 维度累加
+    for (size_t ki = 0; ki < kc; ki++) {
+        float32x4_t vb0 = vld1q_f32(&packed_B[ki * NR + 0]);
+        float32x4_t vb1 = vld1q_f32(&packed_B[ki * NR + 4]);
+        float32x4_t vb2 = vld1q_f32(&packed_B[ki * NR + 8]);
+        float32x4_t vb3 = vld1q_f32(&packed_B[ki * NR + 12]);
+
+        for (int i = 0; i < 8; i++) {
+            float32x4_t va = vdupq_n_f32(packed_A[ki * MR + i]);
+            vc[i][0] = vfmaq_f32(vc[i][0], va, vb0);
+            vc[i][1] = vfmaq_f32(vc[i][1], va, vb1);
+            vc[i][2] = vfmaq_f32(vc[i][2], va, vb2);
+            vc[i][3] = vfmaq_f32(vc[i][3], va, vb3);
+        }
+    }
+
+    // 写回 C
+    for (int i = 0; i < 8; i++)
+        for (int r = 0; r < 4; r++)
+            vst1q_f32(&C[i * ldc + r * 4], vc[i][r]);
+}
+```
+
+**计算密度对比：**
+
+| 方案 | 每次 ki 的 FLOP | 每次 ki 的 load | 计算/访存比 |
+|------|----------------|----------------|-------------|
+| 3.1 简单 NEON (1*n) | 2*tile_n | tile_n + tile_n | 1:1 |
+| 3.2 Micro-kernel (8*16) | 256 | 8+16 = 24 | **10.7:1** |
+
+> **为什么 8*16?** 8*16 = 128 个 C 累加器 = 32 个 NEON 寄存器，刚好用满 AArch64 的 v0~v31。
+> 更大的 micro-kernel（如 12*16）会导致寄存器溢出到栈（register spilling），反而变慢。
+
+**预期效果：** 在 3.1 基础上再 ~2-3x, 单核 60-90 GFLOPS
+
+### 3.3 Software Prefetch (软件预取)
+
+**原理：** M5 有硬件预取器，对顺序访问模式效果很好，但在首次访问新 tile 或跨步访问时响应较慢。软件预取通过 `__builtin_prefetch` 提前发出 cache line 加载请求，让数据在需要时已在 L1 中就绪。
+
+**适用场景：**
+
+1. **micro-kernel 内部** -- 提前 2-3 轮预取后续 ki 对应的 packed B 数据：
+
+```c
+for (size_t ki = 0; ki < kc; ki++) {
+    // 预取 ki+2 轮要用的 B 数据（提前 2 轮，给 L1 加载留出时间）
+    __builtin_prefetch(&packed_B[(ki + 2) * NR], 0, 3);  // 0=读, 3=最高局部性
+
+    // ... FMA 计算 ...
+}
+```
+
+2. **tile 循环间** -- 提前预取即将处理的下一个 tile 首块数据，减少"冷启动" miss：
+
+```c
+for (size_t jj = 0; jj < n; jj += TILE_SIZE) {
+    if (jj + TILE_SIZE < n)
+        __builtin_prefetch(&data_b[kk * n + jj + TILE_SIZE], 0, 1);
+    // ... pack + compute ...
+}
+```
+
+> **注意：** 过多 prefetch 会占用 load 端口、污染 cache。建议在 NEON + micro-kernel 完成后，
+> 通过 benchmark 对比有无 prefetch 的性能差异，按需保留。
+
+**预期效果：** ~5-10%（最后阶段的微调手段）
+
+### 3.4 分层 Tiling (L1 + L2 两级分块)
+
+**原理：** 当前单一 `TILE_SIZE=64` 是为标量计算设计的（3*16KB=48KB < 128KB L1）。加入 NEON micro-kernel 后，计算速度大幅提升，数据消耗更快 -- tile 太小则切换开销占比增大，太大则溢出 L1。最优策略是引入 **两级 tiling**，分别匹配 L1 和 L2 的容量。
+
+**BLIS 风格的三层参数：**
+
+| 参数 | 含义 | 推荐值 (M5) | 对应缓存 |
+|------|------|-------------|----------|
+| `mc` | A panel 行数 | 128 | A panel (mc*kc) 驻留 L2 |
+| `kc` | 共享维度块大小 | 128 | B panel (kc*nc) 驻留 L2 |
+| `nc` | B panel 列数 | 512 | -- |
+| `mr` | micro-kernel 行数 | 8 | C micro-tile 驻留寄存器 |
+| `nr` | micro-kernel 列数 | 16 | C micro-tile 驻留寄存器 |
+
+**循环结构（5 层 + micro-kernel）：**
+
+```c
+// L2 级 tiling
+for (jc = 0; jc < n; jc += nc)        // B panel 列
+  for (pc = 0; pc < k; pc += kc) {    // 共享维度
+    pack_B(B, packed_B, pc, jc, kc, nc);  // 整个 B panel 打包一次
+
+    for (ic = 0; ic < m; ic += mc) {  // A panel 行
+      pack_A(A, packed_A, ic, pc, mc, kc);  // A panel 打包一次
+
+      // micro-kernel 级：遍历 panel 内的 mr*nr 小块
+      for (jr = 0; jr < nc; jr += NR)
+        for (ir = 0; ir < mc; ir += MR)
+          micro_kernel_8x16(packed_A + ir*kc,
+                            packed_B + jr*kc,
+                            &C[(ic+ir)*n + jc+jr], n, kc);
+    }
+  }
+```
+
+**与单层 tiling 的区别：**
+
+- **单层（当前）：** 一个 64*64 tile 同时服务于 A、B、C，tile 间频繁切换
+- **两级：** L2 级的大 tile（mc*kc、kc*nc）减少 packing 次数，L1 级的 micro-kernel（mr*nr）在寄存器中完成计算
+- packed B panel 在 L2 中被 `mc/mr` 个 micro-kernel 行复用，**B 的 L2 命中率大幅提升**
+
+> **调参建议：** `mc*kc*4` 字节应 <= L1d 的一半（~64 KB），`kc*nc*4` 字节应 <= L2 的一部分（~4 MB）。
+> 具体值需要 benchmark 微调，上表为推荐起点。
+
+**预期效果：** ~10-15% 提升（大矩阵更明显）
+
+### 3.5 OpenMP 多线程
 
 **原理：** 将外层行循环分配到 M5 的多个性能核并行执行。
 
@@ -271,15 +446,18 @@ gcc -O3 -Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include \
 
 ---
 
-## 三层优化的独立性
+## 三层优化的关系
 
-三层优化彼此独立，互不影响：
+三层优化在概念上独立，但第二层和第三层在实施时存在 **协同设计** 关系：
 
-| 层 | 改什么 | 涉及代码 | 对其他层的影响 |
+| 层 | 改什么 | 涉及代码 | 与其他层的关系 |
 |---|--------|---------|---------------|
-| 第一层（算法） | 循环顺序 + 分块结构 | 外层 6 重循环框架 | 无 |
-| 第二层（数据布局） | 数据在内存中的排列 | packing 函数 + `matrix_create` | 无（只是 `ldb` 变小） |
-| 第三层（硬件） | 用什么指令执行计算 | `tile_multiply` 内层循环体 | 无（循环结构不变） |
+| 第一层（算法） | 循环顺序 + 分块结构 | 外层循环框架 | 独立，提供基础框架 |
+| 第二层（数据布局） | 数据在内存中的排列 | packing 函数 + `matrix_create` | A/B packing 格式需匹配第三层 micro-kernel 尺寸 |
+| 第三层（硬件） | 指令 + 寄存器利用 + 预取 + 缓存层次 | micro-kernel + tiling 参数 | micro-kernel 的 mr*nr 决定第二层 packing 布局 |
+
+> **协同关系说明：** 第二层的 A/B packing 布局由第三层 micro-kernel 的 `mr * nr` 尺寸决定。
+> 因此实施时建议：先确定 micro-kernel 尺寸（3.2），再据此设计 packing 格式（2.3），最后调整 tiling 参数（3.4）。
 
 ---
 
@@ -289,10 +467,13 @@ gcc -O3 -Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include \
 |------|------|------------|----------|
 | 基准 | matmul_plain (i,j,k) | ~2 | 1x |
 | 第一层 ✅ | 循环重排 + Tiling | ~16-21 | 8-11x |
-| 第二层 | + B Packing + 内存对齐 | ~20-28 | 10-14x |
-| 第三层 | + NEON SIMD | ~60-80 | 30-40x |
-| 第三层 | + OpenMP 多线程 | ~100-200 | 50-100x |
-| 对比 | OpenBLAS | ~100-200 | — |
+| 第二层 ✅ | + B Packing + 内存对齐 | ~25-28 | 12-14x |
+| 第二层 | + A Packing | ~28-33 | 14-17x |
+| 第三层 | + NEON 向量化（简单） | ~30-40 | 15-20x |
+| 第三层 | + 寄存器 Blocking (8*16) | ~60-90 | 30-45x |
+| 第三层 | + Prefetch + 分层 Tiling | ~70-100 | 35-50x |
+| 第三层 | + OpenMP 多线程 | ~150-300 | 75-150x |
+| 对比 | OpenBLAS | ~100-200 | -- |
 
 ## 文件结构
 
@@ -308,8 +489,12 @@ code/
 ## 实施顺序
 
 1. [x] 第一层：循环重排 + Tiling
-2. [ ] 第二层：B Packing + 内存对齐
-3. [ ] 第三层：NEON SIMD（修改 `tile_multiply`）
-4. [ ] 第三层：OpenMP（外层循环并行）
-5. [ ] OpenBLAS 对比测试
-6. [ ] 完整 benchmark（16, 128, 1K, 8K, 64K）
+2. [x] 第二层：B Packing + 内存对齐
+3. [ ] 第二层：A Packing（micro-panel 格式，需配合步骤 5 的 mr 尺寸）
+4. [ ] 第三层：NEON 向量化（简单版，修改 `tile_multiply`）
+5. [ ] 第三层：寄存器 Blocking（8*16 micro-kernel）
+6. [ ] 第三层：Software Prefetch（micro-kernel 内 + tile 间）
+7. [ ] 第三层：分层 Tiling（L1+L2 两级，调整 mc/kc/nc 参数）
+8. [ ] 第三层：OpenMP 多线程（外层循环并行）
+9. [ ] OpenBLAS 对比测试
+10. [ ] 完整 benchmark（16, 128, 1K, 8K, 64K）
