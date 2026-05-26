@@ -1,0 +1,101 @@
+% appendix_cn.tex - 原始基准测试数据
+\appendix
+\section{原始基准测试数据}
+
+\subsection{阶段5：线程扩展性}
+
+\begin{lstlisting}[language={},caption={1 线程}]
+  16x16:    matmul_improved :  0.0000 sec |    4.096 GFLOPS
+  128x128:  matmul_improved :  0.0002 sec |   22.672 GFLOPS
+  1024x1024: matmul_improved :  0.0365 sec |   58.908 GFLOPS
+  8192x8192: matmul_improved : 23.1167 sec |   47.564 GFLOPS
+\end{lstlisting}
+
+\begin{lstlisting}[language={},caption={4 线程（仅 P 核）}]
+  128x128:  matmul_improved :  0.0001 sec |   36.158 GFLOPS
+  1024x1024: matmul_improved :  0.0112 sec |  191.381 GFLOPS
+  8192x8192: matmul_improved :  6.2363 sec |  176.309 GFLOPS
+\end{lstlisting}
+
+\begin{lstlisting}[language={},caption={10 线程（全部核心）}]
+  128x128:  matmul_improved :  0.0001 sec |   31.775 GFLOPS
+  1024x1024: matmul_improved :  0.0079 sec |  272.904 GFLOPS
+  8192x8192: matmul_improved :  3.7576 sec |  292.608 GFLOPS
+\end{lstlisting}
+
+\subsection{最终基准测试（10 线程，含 OpenBLAS）}
+
+\begin{lstlisting}[language={},caption={最终基准测试输出}]
+  Matrix size: 16 x 16
+  matmul_plain         :     0.0000 sec  |     2.048 GFLOPS
+  matmul_improved      :     0.0003 sec  |     0.029 GFLOPS
+  OpenBLAS sgemm       :     0.0000 sec  |     1.170 GFLOPS
+  improved vs plain: match (tol = 1e-04)
+  improved vs OpenBLAS: match (tol = 1e-03)
+
+  Matrix size: 128 x 128
+  matmul_plain         :     0.0022 sec  |     1.875 GFLOPS
+  matmul_improved      :     0.0002 sec  |    25.732 GFLOPS
+  OpenBLAS sgemm       :     0.0000 sec  |   279.620 GFLOPS
+  improved vs plain: match (tol = 1e-04)
+  improved vs OpenBLAS: match (tol = 1e-03)
+
+  Matrix size: 1024 x 1024
+  matmul_plain         :     1.0866 sec  |     1.976 GFLOPS
+  matmul_improved      :     0.0068 sec  |   316.645 GFLOPS
+  OpenBLAS sgemm       :     0.0017 sec  |  1243.476 GFLOPS
+  improved vs plain: match (tol = 1e-04)
+  improved vs OpenBLAS: match (tol = 1e-03)
+
+  Matrix size: 8192 x 8192
+  matmul_improved      :     2.8521 sec  |   385.506 GFLOPS
+  OpenBLAS sgemm       :     2.1380 sec  |   514.260 GFLOPS
+  improved vs OpenBLAS: match (tol = 1e-03)
+\end{lstlisting}
+
+\subsection{朴素实现 8192$\times$8192}
+
+\begin{lstlisting}[language={},caption={8K 下的朴素基线}]
+matmul_plain 8192x8192: 1587.34 sec | 0.693 GFLOPS
+\end{lstlisting}
+
+\subsection{64K$\times$64K（云端）}
+
+\begin{lstlisting}[language={},caption={64K 基准测试（阿里云 g8y.8xlarge，32 核 ARM）}]
+=== 64Kx64K Matrix Multiplication Benchmark ===
+
+Allocating 3 matrices: 51.5 GB total
+Allocation OK.
+
+Running matmul_improved...
+  matmul_improved :     583.78 sec  |   964.314 GFLOPS
+
+Running OpenBLAS cblas_sgemm...
+  OpenBLAS sgemm  :     417.33 sec  |  1348.919 GFLOPS
+
+Correctness check (1000 random samples):
+  All samples match (max relative error = 1.34e-05)
+
+=== Summary ===
+  Matrix size     : 65536 x 65536
+  improved        : 583.78 sec -> 964.314 GFLOPS
+  OpenBLAS        : 417.33 sec -> 1348.919 GFLOPS
+  improved/BLAS   : 71.5%
+\end{lstlisting}
+
+\subsection{编译命令}
+
+\begin{lstlisting}[language=bash,caption={本地（macOS）}]
+gcc -O3 -Xpreprocessor -fopenmp \
+    -I$(brew --prefix libomp)/include \
+    -L$(brew --prefix libomp)/lib -lomp \
+    -I$(brew --prefix openblas)/include \
+    -L$(brew --prefix openblas)/lib -lopenblas \
+    -o benchmark main.c matrix.c matmul_plain.c matmul_improved.c -lm
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash,caption={云端（Linux ARM）}]
+gcc -O3 -fopenmp -o test_64k \
+    test_64k.c matrix.c matmul_plain.c matmul_improved.c \
+    -lopenblas -lm
+\end{lstlisting}

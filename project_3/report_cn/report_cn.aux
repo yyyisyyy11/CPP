@@ -1,0 +1,56 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand*\HyPL@Entry[1]{}
+\HyPL@Entry{0<</S/D>>}
+\@writefile{toc}{\contentsline {section}{\numberline {1}引言}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}实现}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}基线：\texttt  {matmul\_plain}}{1}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}优化：\texttt  {matmul\_improved} --- 六个阶段}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces 优化路线图（$8192^2$ 下的 GFLOPS，相对上一阶段的加速比）。}}{2}{figure.caption.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}阶段1：循环重排 + 缓存分块}{2}{subsubsection.2.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces 缓存分块：将矩阵划分为 L1 大小的块。}}{2}{figure.caption.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}阶段2：B 矩阵打包 + 对齐}{2}{subsubsection.2.2.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}{\ignorespaces B 矩阵打包}}{3}{lstlisting.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}阶段3：NEON SIMD + $8\times 16$ 微核}{3}{subsubsection.2.2.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces 一次 $k$ 迭代：A 的列广播后与 B 的行相乘，更新全部 32 个 C 累加器。}}{3}{figure.caption.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}{\ignorespaces 微核核心代码（一次 $k$ 迭代，第 0 行）}}{3}{lstlisting.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.4}阶段4：A+B 面板打包}{4}{subsubsection.2.2.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces 微核视角：C[8$\times $16] += packed\_A[8$\times $kc] $\times $ packed\_B[kc$\times $16]。}}{4}{figure.caption.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.5}阶段5：OpenMP 多线程}{4}{subsubsection.2.2.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces 线程扩展性。4 个 P 核接近线性；6 个 E 核贡献约 $\sim $2.4$\times $ 等效性能。}}{4}{table.caption.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.6}阶段6：BLIS 多级分块 + 预取}{4}{subsubsection.2.2.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces BLIS 五层循环结构及缓存级别映射。}}{5}{figure.caption.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}性能结果}{6}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}优化进程}{6}{subsection.3.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces 各阶段的 GFLOPS。``最终'' = BLIS 分块 + OpenMP 10 线程。}}{6}{table.caption.9}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces $1024^2$ 和 $8192^2$ 的性能提升进程。}}{6}{figure.caption.10}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces 瀑布图：$1024^2$}}{6}{figure.caption.11}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces 瀑布图：$8192^2$}}{6}{figure.caption.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}与 OpenBLAS 对比}{7}{subsection.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces 本实现 vs OpenBLAS（10 线程）。}}{7}{figure.caption.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}64K$\times $64K（云服务器）}{7}{subsection.3.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces 64K 基准测试。正确性：1000 个随机采样全部匹配（最大误差 $1.34\times 10^{-5}$）。}}{7}{table.caption.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}分析：OpenBLAS 为何更快}{7}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}规模相关的性能差距}{7}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Apple AMX 协处理器}{8}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}理论峰值}{8}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}大规模下差距缩小的原因}{8}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}实验验证：规模扫描}{8}{subsection.4.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces 规模扫描：15 个矩阵规模的 GFLOPS 及差距比（10 线程）。}}{8}{table.caption.14}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces 规模扫描验证了从计算受限到内存受限的转变。 上：绝对 GFLOPS。下：差距比（OpenBLAS/优化版）。}}{9}{figure.caption.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}结论}{10}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}原始基准测试数据}{10}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}阶段5：线程扩展性}{10}{subsection.A.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {3}{\ignorespaces 1 线程}}{10}{lstlisting.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {4}{\ignorespaces 4 线程（仅 P 核）}}{10}{lstlisting.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces 10 线程（全部核心）}}{10}{lstlisting.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}最终基准测试（10 线程，含 OpenBLAS）}{10}{subsection.A.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {6}{\ignorespaces 最终基准测试输出}}{10}{lstlisting.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}朴素实现 8192$\times $8192}{11}{subsection.A.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {7}{\ignorespaces 8K 下的朴素基线}}{11}{lstlisting.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}64K$\times $64K（云端）}{11}{subsection.A.4}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {8}{\ignorespaces 64K 基准测试（阿里云 g8y.8xlarge，32 核 ARM）}}{11}{lstlisting.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.5}编译命令}{12}{subsection.A.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces 本地（macOS）}}{12}{lstlisting.9}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces 云端（Linux ARM）}}{12}{lstlisting.10}\protected@file@percent }
+\gdef \@abspage@last{12}
